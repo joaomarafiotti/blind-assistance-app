@@ -15,7 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.joaomarafiotti.blindassistanceapp.ui.theme.BlindAssistanceAppTheme
@@ -38,6 +38,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
+    var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
+    var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -59,7 +62,9 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { },
+            onClick = {
+                selectedImageName = "Imagem de teste selecionada"
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Escolher imagem")
@@ -68,11 +73,27 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(12.dp))
 
         Button(
-            onClick = { },
+            onClick = {
+                detectionResult = "Aguardando integração com o backend..."
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Enviar imagem")
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "Imagem selecionada:",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = selectedImageName,
+            style = MaterialTheme.typography.bodyMedium
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -84,7 +105,7 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Nenhuma imagem selecionada ainda.",
+            text = detectionResult,
             style = MaterialTheme.typography.bodyMedium
         )
     }
