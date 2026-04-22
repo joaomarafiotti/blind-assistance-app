@@ -32,6 +32,7 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.regex.Pattern
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,8 +115,8 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
                 detectionResult = "Enviando imagem para o backend..."
 
                 scope.launch {
-                    val result = sendImageToBackend(context, selectedImageUri!!)
-                    detectionResult = result
+                    val rawResult = sendImageToBackend(context, selectedImageUri!!)
+                    detectionResult = formatDetectionResult(rawResult)
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -185,5 +186,16 @@ suspend fun sendImageToBackend(context: android.content.Context, imageUri: Uri):
         } catch (e: Exception) {
             "Erro ao enviar imagem: ${e.message}"
         }
+    }
+}
+
+fun formatDetectionResult(rawResponse: String): String {
+    val regex = Regex("\"class_name\":\"(.*?)\"")
+    val matches = regex.findAll(rawResponse).map { it.groupValues[1] }.toList()
+
+    return if (matches.isEmpty()) {
+        "Nenhum objeto detectado."
+    } else {
+        "Objetos detectados: " + matches.distinct().joinToString(", ")
     }
 }
