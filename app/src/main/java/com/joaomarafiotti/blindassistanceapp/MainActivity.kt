@@ -21,8 +21,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.joaomarafiotti.blindassistanceapp.ui.theme.BlindAssistanceAppTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,6 +51,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
@@ -94,10 +106,16 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = {
-                detectionResult = if (selectedImageUri != null) {
-                    "Pronto para integrar com o backend."
-                } else {
-                    "Selecione uma imagem primeiro."
+                if (selectedImageUri == null) {
+                    detectionResult = "Selecione uma imagem primeiro."
+                    return@Button
+                }
+
+                detectionResult = "Enviando imagem para o backend..."
+
+                scope.launch {
+                    val result = sendImageToBackend(context, selectedImageUri!!)
+                    detectionResult = result
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -132,5 +150,40 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
             text = detectionResult,
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+}
+
+suspend fun sendImageToBackend(context: android.content.Context, imageUri: Uri): String {
+    return withContext(Dispatchers.IO) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+                ?: return@withContext "Erro: não foi possível abrir a imagem."
+
+            val imageBytes = inputStream.readBytes()
+            inputStream.close()
+
+            val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", "selected_image.jpg", requestBody)
+                .build()
+
+            val request = Request.Builder()
+                .url("http://10.0.2.2:8000/detect")
+                .post(multipartBody)
+                .build()
+
+            val client = OkHttpClient()
+            val response = client.newCall(request).execute()
+
+            if (response.isSuccessful) {
+                response.body?.string() ?: "Resposta vazia do backend."
+            } else {
+                "Erro do backend: ${response.code}"
+            }
+        } catch (e: Exception) {
+            "Erro ao enviar imagem: ${e.message}"
+        }
     }
 }
