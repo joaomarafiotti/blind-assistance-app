@@ -1,9 +1,13 @@
 package com.joaomarafiotti.blindassistanceapp
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -38,8 +42,22 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            selectedImageUri = uri
+            selectedImageName = uri.toString()
+            detectionResult = "Imagem pronta para envio ao backend."
+        } else {
+            selectedImageUri = null
+            selectedImageName = "Nenhuma imagem selecionada"
+        }
+    }
 
     Column(
         modifier = modifier
@@ -63,7 +81,9 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = {
-                selectedImageName = "Imagem de teste selecionada"
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -74,7 +94,11 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = {
-                detectionResult = "Aguardando integração com o backend..."
+                detectionResult = if (selectedImageUri != null) {
+                    "Pronto para integrar com o backend."
+                } else {
+                    "Selecione uma imagem primeiro."
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
