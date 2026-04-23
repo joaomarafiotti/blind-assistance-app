@@ -1,6 +1,10 @@
 package com.joaomarafiotti.blindassistanceapp
 
 import android.net.Uri
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
@@ -87,6 +91,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BlindAssistanceHomeScreen(
     modifier: Modifier = Modifier,
@@ -98,6 +103,7 @@ fun BlindAssistanceHomeScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
+    var detectedObjects by remember { mutableStateOf(listOf<String>()) }
     var isLoading by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -107,10 +113,12 @@ fun BlindAssistanceHomeScreen(
             selectedImageUri = uri
             selectedImageName = uri.lastPathSegment ?: "Imagem selecionada"
             detectionResult = "Imagem pronta para envio ao backend."
+            detectedObjects = emptyList()
         } else {
             selectedImageUri = null
             selectedImageName = "Nenhuma imagem selecionada"
             detectionResult = "Nenhum resultado ainda."
+            detectedObjects = emptyList()
         }
     }
 
@@ -166,6 +174,9 @@ fun BlindAssistanceHomeScreen(
                 scope.launch {
                     val rawResult = sendImageToBackend(context, selectedImageUri!!)
                     val formattedResult = formatDetectionResult(rawResult)
+                    val objects = extractDetectedObjects(rawResult)
+
+                    detectedObjects = objects
                     detectionResult = formattedResult
                     isLoading = false
                     onSpeakResult(formattedResult)
@@ -179,9 +190,7 @@ fun BlindAssistanceHomeScreen(
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         ) {
-            Text(
-                if (isLoading) "Enviando..." else "Enviar imagem"
-            )
+            Text(if (isLoading) "Enviando..." else "Enviar imagem")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -215,12 +224,30 @@ fun BlindAssistanceHomeScreen(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
-                Text(
-                    text = detectionResult,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = detectionResult,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (detectedObjects.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            detectedObjects.forEach { obj ->
+                                AssistChip(
+                                    onClick = { },
+                                    label = { Text(obj) },
+                                    colors = AssistChipDefaults.assistChipColors()
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -326,6 +353,15 @@ fun translateClassName(className: String): String {
         "hat" -> "chapéu"
         else -> className
     }
+}
+
+fun extractDetectedObjects(rawResponse: String): List<String> {
+    val regex = Regex("\"class_name\":\"(.*?)\"")
+    return regex.findAll(rawResponse)
+        .map { it.groupValues[1] }
+        .map { translateClassName(it) }
+        .distinct()
+        .toList()
 }
 
 fun formatDetectionResult(rawResponse: String): String {
