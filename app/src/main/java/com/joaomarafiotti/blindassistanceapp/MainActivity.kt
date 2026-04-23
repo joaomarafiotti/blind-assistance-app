@@ -2,6 +2,7 @@ package com.joaomarafiotti.blindassistanceapp
 
 import android.net.Uri
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -32,26 +33,50 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.regex.Pattern
+import java.util.Locale
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
+
+    private var textToSpeech: TextToSpeech? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        textToSpeech = TextToSpeech(this, this)
         enableEdgeToEdge()
         setContent {
             BlindAssistanceAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     BlindAssistanceHomeScreen(
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier.padding(innerPadding),
+                        onSpeakResult = { result -> speakText(result) }
                     )
                 }
             }
         }
     }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            textToSpeech?.language = Locale("pt", "BR")
+        }
+    }
+
+    fun speakText(text: String) {
+        textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+    }
+
+    override fun onDestroy() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        super.onDestroy()
+    }
 }
 
 @Composable
-fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
+fun BlindAssistanceHomeScreen(
+    modifier: Modifier = Modifier,
+    onSpeakResult: (String) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -109,6 +134,7 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
             onClick = {
                 if (selectedImageUri == null) {
                     detectionResult = "Selecione uma imagem primeiro."
+                    onSpeakResult(detectionResult)
                     return@Button
                 }
 
@@ -116,7 +142,9 @@ fun BlindAssistanceHomeScreen(modifier: Modifier = Modifier) {
 
                 scope.launch {
                     val rawResult = sendImageToBackend(context, selectedImageUri!!)
-                    detectionResult = formatDetectionResult(rawResult)
+                    val formattedResult = formatDetectionResult(rawResult)
+                    detectionResult = formattedResult
+                    onSpeakResult(formattedResult)
                 }
             },
             modifier = Modifier.fillMaxWidth()
