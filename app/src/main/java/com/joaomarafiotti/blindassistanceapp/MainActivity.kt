@@ -300,6 +300,34 @@ suspend fun sendImageToBackend(context: android.content.Context, imageUri: Uri):
     }
 }
 
+fun translateClassName(className: String): String {
+    return when (className.lowercase()) {
+        "person" -> "pessoa"
+        "handbag" -> "bolsa"
+        "backpack" -> "mochila"
+        "chair" -> "cadeira"
+        "book" -> "livro"
+        "laptop" -> "notebook"
+        "clock" -> "relógio"
+        "table" -> "mesa"
+        "pen" -> "caneta"
+        "scissor", "scissors" -> "tesoura"
+        "trash-can", "trash can" -> "lixeira"
+        "whiteboard" -> "quadro branco"
+        "bookshelf" -> "estante"
+        "remote-control", "remote control", "remote" -> "controle remoto"
+        "ruler" -> "régua"
+        "eraser" -> "borracha"
+        "sharpener" -> "apontador"
+        "fan" -> "ventilador"
+        "bag" -> "bolsa"
+        "pants" -> "calça"
+        "shoes" -> "sapato"
+        "hat" -> "chapéu"
+        else -> className
+    }
+}
+
 fun formatDetectionResult(rawResponse: String): String {
     val regex = Regex("\"class_name\":\"(.*?)\"")
     val matches = regex.findAll(rawResponse).map { it.groupValues[1] }.toList()
@@ -307,6 +335,10 @@ fun formatDetectionResult(rawResponse: String): String {
     return if (matches.isEmpty()) {
         "Nenhum objeto detectado."
     } else {
-        "Objetos detectados: " + matches.distinct().joinToString(", ")
+        val translated = matches
+            .map { translateClassName(it) }
+            .distinct()
+
+        "Objetos detectados: " + translated.joinToString(", ")
     }
 }
