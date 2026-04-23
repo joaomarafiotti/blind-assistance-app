@@ -9,14 +9,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -24,6 +29,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 import com.joaomarafiotti.blindassistanceapp.ui.theme.BlindAssistanceAppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,7 +95,7 @@ fun BlindAssistanceHomeScreen(
     ) { uri ->
         if (uri != null) {
             selectedImageUri = uri
-            selectedImageName = uri.toString()
+            selectedImageName = uri.lastPathSegment ?: uri.toString()
             detectionResult = "Imagem pronta para envio ao backend."
         } else {
             selectedImageUri = null
@@ -147,7 +153,8 @@ fun BlindAssistanceHomeScreen(
                     onSpeakResult(formattedResult)
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedImageUri != null
         ) {
             Text("Enviar imagem")
         }
@@ -166,6 +173,17 @@ fun BlindAssistanceHomeScreen(
             style = MaterialTheme.typography.bodyMedium
         )
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (selectedImageUri != null) {
+            Image(
+                painter = rememberAsyncImagePainter(selectedImageUri),
+                contentDescription = "Imagem selecionada",
+                modifier = Modifier
+                    .size(220.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
@@ -175,10 +193,17 @@ fun BlindAssistanceHomeScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = detectionResult,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Text(
+                text = detectionResult,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
     }
 }
 
