@@ -10,24 +10,33 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.joaomarafiotti.blindassistanceapp.ui.theme.BlindAssistanceAppTheme
@@ -67,7 +76,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    fun speakText(text: String) {
+    private fun speakText(text: String) {
         textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
     }
 
@@ -89,36 +98,42 @@ fun BlindAssistanceHomeScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
+    var isLoading by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
             selectedImageUri = uri
-            selectedImageName = uri.lastPathSegment ?: uri.toString()
+            selectedImageName = uri.lastPathSegment ?: "Imagem selecionada"
             detectionResult = "Imagem pronta para envio ao backend."
         } else {
             selectedImageUri = null
             selectedImageName = "Nenhuma imagem selecionada"
+            detectionResult = "Nenhum resultado ainda."
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .verticalScroll(rememberScrollState())
+            .background(MaterialTheme.colorScheme.background)
+            .padding(20.dp),
         verticalArrangement = Arrangement.Top
     ) {
         Text(
             text = "Blind Assistance App",
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = "Aplicativo cliente Android da iniciação científica para reconhecimento de objetos em ambiente educacional.",
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -129,7 +144,8 @@ fun BlindAssistanceHomeScreen(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
         ) {
             Text("Escolher imagem")
         }
@@ -144,65 +160,107 @@ fun BlindAssistanceHomeScreen(
                     return@Button
                 }
 
+                isLoading = true
                 detectionResult = "Enviando imagem para o backend..."
 
                 scope.launch {
                     val rawResult = sendImageToBackend(context, selectedImageUri!!)
                     val formattedResult = formatDetectionResult(rawResult)
                     detectionResult = formattedResult
+                    isLoading = false
                     onSpeakResult(formattedResult)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = selectedImageUri != null
-        ) {
-            Text("Enviar imagem")
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Imagem selecionada:",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = selectedImageName,
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (selectedImageUri != null) {
-            Image(
-                painter = rememberAsyncImagePainter(selectedImageUri),
-                contentDescription = "Imagem selecionada",
-                modifier = Modifier
-                    .size(220.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Resultado:",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedImageUri != null && !isLoading,
             shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            colors = ButtonDefaults.buttonColors(
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         ) {
             Text(
-                text = detectionResult,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(16.dp)
+                if (isLoading) "Enviando..." else "Enviar imagem"
             )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SectionCard(title = "Imagem selecionada") {
+            Text(
+                text = selectedImageName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+
+            if (selectedImageUri != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Image(
+                    painter = rememberAsyncImagePainter(selectedImageUri),
+                    contentDescription = "Imagem selecionada",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        SectionCard(title = "Resultado") {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Text(
+                    text = detectionResult,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (selectedImageUri != null && detectionResult != "Nenhum resultado ainda.") {
+            Button(
+                onClick = { onSpeakResult(detectionResult) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Ouvir resultado novamente")
+            }
+        }
+    }
+}
+
+@Composable
+fun SectionCard(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            content()
         }
     }
 }
