@@ -1,11 +1,9 @@
 package com.joaomarafiotti.blindassistanceapp
 
+import android.content.ContentValues
 import android.net.Uri
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import android.os.Bundle
+import android.provider.MediaStore
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,15 +15,18 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,11 +35,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,6 +66,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         textToSpeech = TextToSpeech(this, this)
         enableEdgeToEdge()
+
         setContent {
             BlindAssistanceAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -105,19 +110,65 @@ fun BlindAssistanceHomeScreen(
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
     var detectedObjects by remember { mutableStateOf(listOf<String>()) }
     var isLoading by remember { mutableStateOf(false) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun resetImage(uri: Uri, label: String) {
+        selectedImageUri = uri
+        selectedImageName = label
+        detectionResult = "Imagem pronta para envio ao backend."
+        detectedObjects = emptyList()
+    }
+
+    fun clearImage() {
+        selectedImageUri = null
+        selectedImageName = "Nenhuma imagem selecionada"
+        detectionResult = "Nenhum resultado ainda."
+        detectedObjects = emptyList()
+    }
+
+    fun analyzeImage(uri: Uri) {
+        isLoading = true
+        detectionResult = "Enviando imagem para o backend..."
+        detectedObjects = emptyList()
+
+        scope.launch {
+            val rawResult = sendImageToBackend(context, uri)
+            val formattedResult = formatDetectionResult(rawResult)
+            val objects = extractDetectedObjects(rawResult)
+
+            detectedObjects = objects
+            detectionResult = formattedResult
+            isLoading = false
+            onSpeakResult(formattedResult)
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            selectedImageUri = uri
-            selectedImageName = uri.lastPathSegment ?: "Imagem selecionada"
-            detectionResult = "Imagem pronta para envio ao backend."
-            detectedObjects = emptyList()
+            resetImage(
+                uri = uri,
+                label = uri.lastPathSegment ?: "Imagem selecionada"
+            )
         } else {
-            selectedImageUri = null
-            selectedImageName = "Nenhuma imagem selecionada"
-            detectionResult = "Nenhum resultado ainda."
+            clearImage()
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val uri = pendingCameraUri
+
+        if (success && uri != null) {
+            resetImage(
+                uri = uri,
+                label = "Foto capturada pela câmera"
+            )
+            analyzeImage(uri)
+        } else {
+            detectionResult = "Captura cancelada ou não concluída."
             detectedObjects = emptyList()
         }
     }
@@ -139,7 +190,7 @@ fun BlindAssistanceHomeScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Aplicativo cliente Android da iniciação científica para reconhecimento de objetos em ambiente educacional.",
+            text = "Protótipo Android para reconhecimento de objetos em contexto educacional, com resposta por texto e voz.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
         )
@@ -148,39 +199,56 @@ fun BlindAssistanceHomeScreen(
 
         Button(
             onClick = {
-                photoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
+                val uri = createImageUri(context)
+
+                if (uri != null) {
+                    pendingCameraUri = uri
+                    cameraLauncher.launch(uri)
+                } else {
+                    detectionResult = "Erro ao preparar captura da foto."
+                    detectedObjects = emptyList()
+                    onSpeakResult(detectionResult)
+                }
             },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Escolher imagem")
+            Text("Tirar foto e analisar")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = {
-                if (selectedImageUri == null) {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary
+            )
+        ) {
+            Text("Selecionar imagem para teste")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                val uri = selectedImageUri
+
+                if (uri == null) {
                     detectionResult = "Selecione uma imagem primeiro."
+                    detectedObjects = emptyList()
                     onSpeakResult(detectionResult)
                     return@Button
                 }
 
-                isLoading = true
-                detectionResult = "Enviando imagem para o backend..."
-
-                scope.launch {
-                    val rawResult = sendImageToBackend(context, selectedImageUri!!)
-                    val formattedResult = formatDetectionResult(rawResult)
-                    val objects = extractDetectedObjects(rawResult)
-
-                    detectedObjects = objects
-                    detectionResult = formattedResult
-                    isLoading = false
-                    onSpeakResult(formattedResult)
-                }
+                analyzeImage(uri)
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = selectedImageUri != null && !isLoading,
@@ -190,12 +258,12 @@ fun BlindAssistanceHomeScreen(
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         ) {
-            Text(if (isLoading) "Enviando..." else "Enviar imagem")
+            Text(if (isLoading) "Analisando..." else "Analisar imagem selecionada")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SectionCard(title = "Imagem selecionada") {
+        SectionCard(title = "Imagem") {
             Text(
                 text = selectedImageName,
                 style = MaterialTheme.typography.bodyMedium,
@@ -207,7 +275,7 @@ fun BlindAssistanceHomeScreen(
 
                 Image(
                     painter = rememberAsyncImagePainter(selectedImageUri),
-                    contentDescription = "Imagem selecionada",
+                    contentDescription = "Imagem selecionada ou capturada",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -257,6 +325,7 @@ fun BlindAssistanceHomeScreen(
             Button(
                 onClick = { onSpeakResult(detectionResult) },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text("Ouvir resultado novamente")
@@ -290,6 +359,21 @@ fun SectionCard(
             content()
         }
     }
+}
+
+fun createImageUri(context: android.content.Context): Uri? {
+    val contentValues = ContentValues().apply {
+        put(
+            MediaStore.Images.Media.DISPLAY_NAME,
+            "blind_assistance_${System.currentTimeMillis()}.jpg"
+        )
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+    }
+
+    return context.contentResolver.insert(
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        contentValues
+    )
 }
 
 suspend fun sendImageToBackend(context: android.content.Context, imageUri: Uri): String {
@@ -351,11 +435,16 @@ fun translateClassName(className: String): String {
         "pants" -> "calça"
         "shoes" -> "sapato"
         "hat" -> "chapéu"
+        "wall-magazine" -> "mural"
         else -> className
     }
 }
 
 fun extractDetectedObjects(rawResponse: String): List<String> {
+    if (rawResponse.startsWith("Erro")) {
+        return emptyList()
+    }
+
     val regex = Regex("\"class_name\":\"(.*?)\"")
     return regex.findAll(rawResponse)
         .map { it.groupValues[1] }
@@ -365,6 +454,10 @@ fun extractDetectedObjects(rawResponse: String): List<String> {
 }
 
 fun formatDetectionResult(rawResponse: String): String {
+    if (rawResponse.startsWith("Erro")) {
+        return rawResponse
+    }
+
     val regex = Regex("\"class_name\":\"(.*?)\"")
     val matches = regex.findAll(rawResponse).map { it.groupValues[1] }.toList()
 
