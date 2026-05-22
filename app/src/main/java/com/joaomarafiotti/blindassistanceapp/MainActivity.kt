@@ -105,6 +105,10 @@ fun BlindAssistanceHomeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val localDetector = remember {
+        YoloTfliteDetector(context.applicationContext)
+    }
+
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
@@ -140,6 +144,24 @@ fun BlindAssistanceHomeScreen(
             detectionResult = formattedResult
             isLoading = false
             onSpeakResult(formattedResult)
+        }
+    }
+
+    fun analyzeImageOnDevice(uri: Uri) {
+        isLoading = true
+        detectionResult = "Executando inferência local no dispositivo..."
+        detectedObjects = emptyList()
+
+        scope.launch {
+            val summary = withContext(Dispatchers.Default) {
+                localDetector.runOnImageUri(uri)
+            }
+
+            detectionResult = summary.message
+            detectedObjects = emptyList()
+            isLoading = false
+
+            onSpeakResult("Inferência local executada com sucesso.")
         }
     }
 
@@ -259,6 +281,33 @@ fun BlindAssistanceHomeScreen(
             )
         ) {
             Text(if (isLoading) "Analisando..." else "Analisar imagem selecionada")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                val uri = selectedImageUri
+
+                if (uri == null) {
+                    detectionResult = "Selecione ou capture uma imagem primeiro."
+                    detectedObjects = emptyList()
+                    onSpeakResult(detectionResult)
+                    return@Button
+                }
+
+                analyzeImageOnDevice(uri)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedImageUri != null && !isLoading,
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            Text(if (isLoading) "Analisando..." else "Analisar on-device")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
