@@ -9,40 +9,65 @@ import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
-import kotlin.math.min
+import kotlin.math.roundToInt
 
-data class LocalDetectionSummary(
-    val message: String,
+data class LocalDetection(
+    val classId: Int,
+    val className: String,
+    val confidence: Float,
+    val box: List<Float>
+)
+
+data class LocalDetectionResult(
+    val detections: List<LocalDetection>,
     val inferenceMs: Long,
     val outputShape: String,
-    val topValues: List<Float>
+    val rawCandidateCount: Int
 )
 
 class YoloTfliteDetector(
     private val context: Context
 ) {
+    private val labels: List<String> by lazy {
+        loadLabels("labels.txt")
+    }
+
     private val interpreter: Interpreter by lazy {
         val modelBuffer = loadModelFile("classroom_yolo26n_e50_best_float32.tflite")
         Interpreter(modelBuffer)
     }
 
-    fun runOnImageUri(imageUri: Uri): LocalDetectionSummary {
+    fun runOnImageUri(
+        imageUri: Uri,
+        confidenceThreshold: Float = 0.25f
+    ): LocalDetectionResult {
         val bitmap = context.contentResolver.openInputStream(imageUri).use { inputStream ->
             BitmapFactory.decodeStream(inputStream)
-        } ?: return LocalDetectionSummary(
-            message = "Erro ao abrir imagem para inferência local.",
+        } ?: return LocalDetectionResult(
+            detections = emptyList(),
             inferenceMs = 0,
             outputShape = "N/A",
-            topValues = emptyList()
+            rawCandidateCount = 0
         )
 
-        return runOnBitmap(bitmap)
+        return runOnBitmap(
+            bitmap = bitmap,
+            confidenceThreshold = confidenceThreshold
+        )
     }
 
-    private fun runOnBitmap(bitmap: Bitmap): LocalDetectionSummary {
+    private fun runOnBitmap(
+        bitmap: Bitmap,
+        confidenceThreshold: Float
+    ): LocalDetectionResult {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 640, 640, true)
         val inputBuffer = bitmapToFloat32ByteBuffer(resizedBitmap)
 
+        // Exported YOLO26n TFLite output:
+        // shape: 1 x 300 x 6
+        //
+        // Expected row layout:
+        // [x1, y1, x2, y2, confidence, class_id]
         val output = Array(1) { Array(300) { FloatArray(6) } }
 
         val start = System.nanoTime()
@@ -51,28 +76,76 @@ class YoloTfliteDetector(
 
         val inferenceMs = (end - start) / 1_000_000
 
-        val flattened = output[0]
-            .flatMap { it.asList() }
-            .filter { it.isFinite() }
+        val detections = parseOutput(
+            outputRows = output[0],
+            confidenceThreshold = confidenceThreshold
+        )
 
-        val topValues = flattened
-            .sortedDescending()
-            .take(10)
-
-        val message = buildString {
-            append("Inferência local executada com sucesso. ")
-            append("Tempo aproximado: ")
-            append(inferenceMs)
-            append(" ms. ")
-            append("Formato da saída: 1 x 300 x 6.")
-        }
-
-        return LocalDetectionSummary(
-            message = message,
+        return LocalDetectionResult(
+            detections = detections,
             inferenceMs = inferenceMs,
             outputShape = "1 x 300 x 6",
-            topValues = topValues
+            rawCandidateCount = output[0].size
         )
+    }
+
+    private fun parseOutput(
+        outputRows: Array<FloatArray>,
+        confidenceThreshold: Float
+    ): List<LocalDetection> {
+        val parsedDetections = mutableListOf<LocalDetection>()
+
+        for (row in outputRows) {
+            if (row.size < 6) continue
+
+            val parsedClassAndConfidence = parseClassAndConfidence(row) ?: continue
+            val classId = parsedClassAndConfidence.first
+            val confidence = parsedClassAndConfidence.second
+
+            if (confidence < confidenceThreshold) continue
+            if (classId !in labels.indices) continue
+
+            val className = labels[classId]
+
+            parsedDetections.add(
+                LocalDetection(
+                    classId = classId,
+                    className = className,
+                    confidence = confidence,
+                    box = listOf(row[0], row[1], row[2], row[3])
+                )
+            )
+        }
+
+        // Keep the highest-confidence detection for each class.
+        return parsedDetections
+            .groupBy { it.classId }
+            .mapNotNull { (_, detectionsForClass) ->
+                detectionsForClass.maxByOrNull { it.confidence }
+            }
+            .sortedByDescending { it.confidence }
+    }
+
+    private fun parseClassAndConfidence(row: FloatArray): Pair<Int, Float>? {
+        // Most likely layout:
+        // [x1, y1, x2, y2, confidence, class_id]
+        val confidenceA = row[4]
+        val classIdA = row[5].roundToInt()
+
+        if (confidenceA in 0.0f..1.0f && classIdA in labels.indices) {
+            return classIdA to confidenceA
+        }
+
+        // Fallback layout, in case model output comes as:
+        // [x1, y1, x2, y2, class_id, confidence]
+        val classIdB = row[4].roundToInt()
+        val confidenceB = row[5]
+
+        if (confidenceB in 0.0f..1.0f && classIdB in labels.indices) {
+            return classIdB to confidenceB
+        }
+
+        return null
     }
 
     private fun bitmapToFloat32ByteBuffer(bitmap: Bitmap): ByteBuffer {
@@ -109,5 +182,14 @@ class YoloTfliteDetector(
             startOffset,
             declaredLength
         )
+    }
+
+    private fun loadLabels(assetName: String): List<String> {
+        return context.assets.open(assetName).bufferedReader().useLines { lines ->
+            lines
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+        }
     }
 }

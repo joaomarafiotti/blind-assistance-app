@@ -119,7 +119,7 @@ fun BlindAssistanceHomeScreen(
     fun resetImage(uri: Uri, label: String) {
         selectedImageUri = uri
         selectedImageName = label
-        detectionResult = "Imagem pronta para envio ao backend."
+        detectionResult = "Imagem pronta para análise."
         detectedObjects = emptyList()
     }
 
@@ -130,14 +130,14 @@ fun BlindAssistanceHomeScreen(
         detectedObjects = emptyList()
     }
 
-    fun analyzeImage(uri: Uri) {
+    fun analyzeImageWithBackend(uri: Uri) {
         isLoading = true
         detectionResult = "Enviando imagem para o backend..."
         detectedObjects = emptyList()
 
         scope.launch {
             val rawResult = sendImageToBackend(context, uri)
-            val formattedResult = formatDetectionResult(rawResult)
+            val formattedResult = formatBackendDetectionResult(rawResult)
             val objects = extractDetectedObjects(rawResult)
 
             detectedObjects = objects
@@ -153,15 +153,20 @@ fun BlindAssistanceHomeScreen(
         detectedObjects = emptyList()
 
         scope.launch {
-            val summary = withContext(Dispatchers.Default) {
+            val localResult = withContext(Dispatchers.Default) {
                 localDetector.runOnImageUri(uri)
             }
 
-            detectionResult = summary.message
-            detectedObjects = emptyList()
+            val formattedResult = formatLocalDetectionResult(localResult)
+            val objects = localResult.detections
+                .map { translateClassName(it.className) }
+                .distinct()
+
+            detectedObjects = objects
+            detectionResult = formattedResult
             isLoading = false
 
-            onSpeakResult("Inferência local executada com sucesso.")
+            onSpeakResult(formattedResult)
         }
     }
 
@@ -188,7 +193,9 @@ fun BlindAssistanceHomeScreen(
                 uri = uri,
                 label = "Foto capturada pela câmera"
             )
-            analyzeImage(uri)
+
+            // Main assistive flow: camera -> local model -> text/TTS.
+            analyzeImageOnDevice(uri)
         } else {
             detectionResult = "Captura cancelada ou não concluída."
             detectedObjects = emptyList()
@@ -236,7 +243,7 @@ fun BlindAssistanceHomeScreen(
             enabled = !isLoading,
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Tirar foto e analisar")
+            Text("Tirar foto e analisar on-device")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -264,32 +271,6 @@ fun BlindAssistanceHomeScreen(
                 val uri = selectedImageUri
 
                 if (uri == null) {
-                    detectionResult = "Selecione uma imagem primeiro."
-                    detectedObjects = emptyList()
-                    onSpeakResult(detectionResult)
-                    return@Button
-                }
-
-                analyzeImage(uri)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = selectedImageUri != null && !isLoading,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        ) {
-            Text(if (isLoading) "Analisando..." else "Analisar imagem selecionada")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                val uri = selectedImageUri
-
-                if (uri == null) {
                     detectionResult = "Selecione ou capture uma imagem primeiro."
                     detectedObjects = emptyList()
                     onSpeakResult(detectionResult)
@@ -308,6 +289,32 @@ fun BlindAssistanceHomeScreen(
             )
         ) {
             Text(if (isLoading) "Analisando..." else "Analisar on-device")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                val uri = selectedImageUri
+
+                if (uri == null) {
+                    detectionResult = "Selecione uma imagem primeiro."
+                    detectedObjects = emptyList()
+                    onSpeakResult(detectionResult)
+                    return@Button
+                }
+
+                analyzeImageWithBackend(uri)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedImageUri != null && !isLoading,
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            Text(if (isLoading) "Analisando..." else "Analisar via backend")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -502,7 +509,7 @@ fun extractDetectedObjects(rawResponse: String): List<String> {
         .toList()
 }
 
-fun formatDetectionResult(rawResponse: String): String {
+fun formatBackendDetectionResult(rawResponse: String): String {
     if (rawResponse.startsWith("Erro")) {
         return rawResponse
     }
@@ -511,12 +518,34 @@ fun formatDetectionResult(rawResponse: String): String {
     val matches = regex.findAll(rawResponse).map { it.groupValues[1] }.toList()
 
     return if (matches.isEmpty()) {
-        "Nenhum objeto detectado."
+        "Nenhum objeto detectado pelo backend."
     } else {
         val translated = matches
             .map { translateClassName(it) }
             .distinct()
 
-        "Objetos detectados: " + translated.joinToString(", ")
+        "Objetos detectados pelo backend: " + translated.joinToString(", ")
     }
+}
+
+fun formatLocalDetectionResult(result: LocalDetectionResult): String {
+    if (result.detections.isEmpty()) {
+        return "Nenhum objeto detectado localmente. Tempo aproximado: ${result.inferenceMs} ms."
+    }
+
+    val objectNames = result.detections
+        .map { translateClassName(it.className) }
+        .distinct()
+
+    val confidenceDetails = result.detections
+        .take(3)
+        .joinToString(", ") {
+            val translatedName = translateClassName(it.className)
+            val percentage = (it.confidence * 100).toInt()
+            "$translatedName ${percentage}%"
+        }
+
+    return "Objetos detectados on-device: ${objectNames.joinToString(", ")}. " +
+            "Principais confianças: $confidenceDetails. " +
+            "Tempo aproximado: ${result.inferenceMs} ms."
 }
