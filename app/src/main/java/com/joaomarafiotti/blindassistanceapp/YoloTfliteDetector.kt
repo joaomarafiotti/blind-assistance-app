@@ -39,7 +39,7 @@ class YoloTfliteDetector(
 
     fun runOnImageUri(
         imageUri: Uri,
-        confidenceThreshold: Float = 0.25f
+        confidenceThreshold: Float = 0.40f
     ): LocalDetectionResult {
         val bitmap = context.contentResolver.openInputStream(imageUri).use { inputStream ->
             BitmapFactory.decodeStream(inputStream)

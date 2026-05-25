@@ -530,22 +530,65 @@ fun formatBackendDetectionResult(rawResponse: String): String {
 
 fun formatLocalDetectionResult(result: LocalDetectionResult): String {
     if (result.detections.isEmpty()) {
-        return "Nenhum objeto detectado localmente. Tempo aproximado: ${result.inferenceMs} ms."
+        return "Nenhum objeto reconhecido com segurança. " +
+                "Tente aproximar o objeto, melhorar a iluminação ou tirar outra foto. " +
+                "Tempo aproximado: ${result.inferenceMs} ms."
     }
 
-    val objectNames = result.detections
-        .map { translateClassName(it.className) }
-        .distinct()
+    val highConfidenceDetections = result.detections.filter { it.confidence >= 0.70f }
+    val mediumConfidenceDetections = result.detections.filter { it.confidence in 0.40f..<0.70f }
 
-    val confidenceDetails = result.detections
-        .take(3)
-        .joinToString(", ") {
-            val translatedName = translateClassName(it.className)
-            val percentage = (it.confidence * 100).toInt()
-            "$translatedName ${percentage}%"
+    fun formatConfidence(detection: LocalDetection): String {
+        val translatedName = translateClassName(detection.className)
+        val percentage = (detection.confidence * 100).toInt()
+        return "$translatedName ${percentage}%"
+    }
+
+    return when {
+        highConfidenceDetections.isNotEmpty() -> {
+            val detectedNames = highConfidenceDetections
+                .map { translateClassName(it.className) }
+                .distinct()
+
+            val mainConfidences = highConfidenceDetections
+                .take(3)
+                .joinToString(", ") { formatConfidence(it) }
+
+            val possiblePart = if (mediumConfidenceDetections.isNotEmpty()) {
+                val possibleNames = mediumConfidenceDetections
+                    .map { translateClassName(it.className) }
+                    .distinct()
+                    .joinToString(", ")
+
+                " Possíveis objetos com menor confiança: $possibleNames."
+            } else {
+                ""
+            }
+
+            "Detectei on-device: ${detectedNames.joinToString(", ")}. " +
+                    "Confianças principais: $mainConfidences." +
+                    possiblePart +
+                    " Tempo aproximado: ${result.inferenceMs} ms."
         }
 
-    return "Objetos detectados on-device: ${objectNames.joinToString(", ")}. " +
-            "Principais confianças: $confidenceDetails. " +
-            "Tempo aproximado: ${result.inferenceMs} ms."
+        mediumConfidenceDetections.isNotEmpty() -> {
+            val possibleNames = mediumConfidenceDetections
+                .map { translateClassName(it.className) }
+                .distinct()
+
+            val mainConfidences = mediumConfidenceDetections
+                .take(3)
+                .joinToString(", ") { formatConfidence(it) }
+
+            "Possível detecção on-device: ${possibleNames.joinToString(", ")}. " +
+                    "Confiança moderada: $mainConfidences. " +
+                    "Tente confirmar com outra foto. " +
+                    "Tempo aproximado: ${result.inferenceMs} ms."
+        }
+
+        else -> {
+            "Nenhum objeto reconhecido com segurança. " +
+                    "Tempo aproximado: ${result.inferenceMs} ms."
+        }
+    }
 }
