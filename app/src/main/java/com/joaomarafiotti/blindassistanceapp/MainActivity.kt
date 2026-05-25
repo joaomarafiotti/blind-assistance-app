@@ -1,6 +1,11 @@
 package com.joaomarafiotti.blindassistanceapp
 
 import android.content.ContentValues
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -183,9 +188,15 @@ fun BlindAssistanceHomeScreen(
 
             val formattedResult = formatLocalDetectionResult(localResult)
             val ttsResult = formatLocalTtsResult(localResult)
+            val feedbackType = getLocalFeedbackType(localResult)
             val objects = localResult.detections
                 .map { translateClassName(it.className) }
                 .distinct()
+
+            triggerHapticFeedback(
+                context = context.applicationContext,
+                feedbackType = feedbackType
+            )
 
             detectedObjects = objects
             detectionResult = formattedResult
@@ -730,5 +741,69 @@ fun formatLocalTtsResult(result: LocalDetectionResult): String {
         else -> {
             "Não consegui reconhecer com segurança."
         }
+    }
+}
+
+enum class DetectionFeedbackType {
+    HIGH_CONFIDENCE,
+    MEDIUM_CONFIDENCE,
+    NO_SAFE_DETECTION
+}
+
+fun getLocalFeedbackType(result: LocalDetectionResult): DetectionFeedbackType {
+    if (result.detections.isEmpty()) {
+        return DetectionFeedbackType.NO_SAFE_DETECTION
+    }
+
+    val hasHighConfidence = result.detections.any { it.confidence >= 0.70f }
+
+    if (hasHighConfidence) {
+        return DetectionFeedbackType.HIGH_CONFIDENCE
+    }
+
+    val hasMediumConfidence = result.detections.any { it.confidence in 0.40f..<0.70f }
+
+    if (hasMediumConfidence) {
+        return DetectionFeedbackType.MEDIUM_CONFIDENCE
+    }
+
+    return DetectionFeedbackType.NO_SAFE_DETECTION
+}
+
+fun triggerHapticFeedback(
+    context: Context,
+    feedbackType: DetectionFeedbackType
+) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val vibratorManager =
+            context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+        vibratorManager.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    }
+
+    if (!vibrator.hasVibrator()) {
+        return
+    }
+
+    val pattern = when (feedbackType) {
+        DetectionFeedbackType.HIGH_CONFIDENCE -> longArrayOf(0, 90)
+        DetectionFeedbackType.MEDIUM_CONFIDENCE -> longArrayOf(0, 70, 90, 70)
+        DetectionFeedbackType.NO_SAFE_DETECTION -> longArrayOf(0, 180)
+    }
+
+    val amplitudes = when (feedbackType) {
+        DetectionFeedbackType.HIGH_CONFIDENCE -> intArrayOf(0, 180)
+        DetectionFeedbackType.MEDIUM_CONFIDENCE -> intArrayOf(0, 150, 0, 150)
+        DetectionFeedbackType.NO_SAFE_DETECTION -> intArrayOf(0, 90)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val effect = VibrationEffect.createWaveform(pattern, amplitudes, -1)
+        vibrator.vibrate(effect)
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(pattern, -1)
     }
 }
