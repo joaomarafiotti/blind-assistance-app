@@ -1,0 +1,11 @@
+﻿image_id,expected_object,source,device,model,detected_objects,primary_detection,primary_confidence_percent,inference_ms,status,notes
+01,mochila/bolsa,dataset,emulador,YOLO26n Float32,bolsa,bolsa,91,437,correto,"Objeto esperado corresponde à classe bag/bolsa."
+01,mochila/bolsa,dataset,emulador,YOLOv8n Float32,bolsa,bolsa,97,617,correto,"Objeto esperado corresponde à classe bag/bolsa."
+02,régua,dataset,emulador,YOLO26n Float32,régua,régua,90,440,correto,"Detecção correta."
+02,régua,dataset,emulador,YOLOv8n Float32,régua,régua,89,627,correto,"Detecção correta."
+03,cadeira,dataset,emulador,YOLO26n Float32,cadeira,cadeira,94,480,correto,"Detecção correta."
+03,cadeira,dataset,emulador,YOLOv8n Float32,cadeira,cadeira,88,596,correto,"Detecção correta."
+04,tesoura,dataset,emulador,YOLO26n Float32,tesoura,tesoura,98,487,correto,"Detecção correta."
+04,tesoura,dataset,emulador,YOLOv8n Float32,tesoura,tesoura,93,747,correto,"Detecção correta."
+05,apontador,dataset,emulador,YOLO26n Float32,"apontador; borracha",apontador,94,435,correto_com_deteccao_extra,"Detectou apontador corretamente, mas também retornou borracha como detecção secundária."
+05,apontador,dataset,emulador,YOLOv8n Float32,apontador,apontador,92,793,correto,"Detecção correta."
