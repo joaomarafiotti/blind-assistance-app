@@ -112,6 +112,7 @@ fun BlindAssistanceHomeScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageName by remember { mutableStateOf("Nenhuma imagem selecionada") }
     var detectionResult by remember { mutableStateOf("Nenhum resultado ainda.") }
+    var spokenResult by remember { mutableStateOf("Nenhum resultado ainda.") }
     var detectedObjects by remember { mutableStateOf(listOf<String>()) }
     var isLoading by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -120,6 +121,7 @@ fun BlindAssistanceHomeScreen(
         selectedImageUri = uri
         selectedImageName = label
         detectionResult = "Imagem pronta para análise."
+        spokenResult = "Imagem pronta para análise."
         detectedObjects = emptyList()
     }
 
@@ -127,29 +129,46 @@ fun BlindAssistanceHomeScreen(
         selectedImageUri = null
         selectedImageName = "Nenhuma imagem selecionada"
         detectionResult = "Nenhum resultado ainda."
+        spokenResult = "Nenhum resultado ainda."
         detectedObjects = emptyList()
+    }
+
+    fun updateResultAndSpeak(
+        visualMessage: String,
+        spokenMessage: String,
+        objects: List<String> = emptyList()
+    ) {
+        detectionResult = visualMessage
+        spokenResult = spokenMessage
+        detectedObjects = objects
+        onSpeakResult(spokenMessage)
     }
 
     fun analyzeImageWithBackend(uri: Uri) {
         isLoading = true
         detectionResult = "Enviando imagem para o backend..."
+        spokenResult = "Enviando imagem para o backend."
         detectedObjects = emptyList()
 
         scope.launch {
             val rawResult = sendImageToBackend(context, uri)
             val formattedResult = formatBackendDetectionResult(rawResult)
+            val ttsResult = formatBackendTtsResult(rawResult)
             val objects = extractDetectedObjects(rawResult)
 
             detectedObjects = objects
             detectionResult = formattedResult
+            spokenResult = ttsResult
             isLoading = false
-            onSpeakResult(formattedResult)
+
+            onSpeakResult(ttsResult)
         }
     }
 
     fun analyzeImageOnDevice(uri: Uri) {
         isLoading = true
         detectionResult = "Executando inferência local no dispositivo..."
+        spokenResult = "Analisando imagem."
         detectedObjects = emptyList()
 
         scope.launch {
@@ -158,15 +177,17 @@ fun BlindAssistanceHomeScreen(
             }
 
             val formattedResult = formatLocalDetectionResult(localResult)
+            val ttsResult = formatLocalTtsResult(localResult)
             val objects = localResult.detections
                 .map { translateClassName(it.className) }
                 .distinct()
 
             detectedObjects = objects
             detectionResult = formattedResult
+            spokenResult = ttsResult
             isLoading = false
 
-            onSpeakResult(formattedResult)
+            onSpeakResult(ttsResult)
         }
     }
 
@@ -194,11 +215,12 @@ fun BlindAssistanceHomeScreen(
                 label = "Foto capturada pela câmera"
             )
 
-            // Main assistive flow: camera -> local model -> text/TTS.
             analyzeImageOnDevice(uri)
         } else {
-            detectionResult = "Captura cancelada ou não concluída."
-            detectedObjects = emptyList()
+            updateResultAndSpeak(
+                visualMessage = "Captura cancelada ou não concluída.",
+                spokenMessage = "Captura cancelada."
+            )
         }
     }
 
@@ -234,9 +256,10 @@ fun BlindAssistanceHomeScreen(
                     pendingCameraUri = uri
                     cameraLauncher.launch(uri)
                 } else {
-                    detectionResult = "Erro ao preparar captura da foto."
-                    detectedObjects = emptyList()
-                    onSpeakResult(detectionResult)
+                    updateResultAndSpeak(
+                        visualMessage = "Erro ao preparar captura da foto.",
+                        spokenMessage = "Erro ao preparar a câmera."
+                    )
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -271,9 +294,10 @@ fun BlindAssistanceHomeScreen(
                 val uri = selectedImageUri
 
                 if (uri == null) {
-                    detectionResult = "Selecione ou capture uma imagem primeiro."
-                    detectedObjects = emptyList()
-                    onSpeakResult(detectionResult)
+                    updateResultAndSpeak(
+                        visualMessage = "Selecione ou capture uma imagem primeiro.",
+                        spokenMessage = "Selecione ou capture uma imagem primeiro."
+                    )
                     return@Button
                 }
 
@@ -298,9 +322,10 @@ fun BlindAssistanceHomeScreen(
                 val uri = selectedImageUri
 
                 if (uri == null) {
-                    detectionResult = "Selecione uma imagem primeiro."
-                    detectedObjects = emptyList()
-                    onSpeakResult(detectionResult)
+                    updateResultAndSpeak(
+                        visualMessage = "Selecione uma imagem primeiro.",
+                        spokenMessage = "Selecione uma imagem primeiro."
+                    )
                     return@Button
                 }
 
@@ -331,7 +356,7 @@ fun BlindAssistanceHomeScreen(
 
                 Image(
                     painter = rememberAsyncImagePainter(selectedImageUri),
-                    contentDescription = "Imagem selecionada ou capturada",
+                    contentDescription = "Imagem selecionada ou capturada para análise de objetos",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -379,7 +404,7 @@ fun BlindAssistanceHomeScreen(
 
         if (selectedImageUri != null && detectionResult != "Nenhum resultado ainda.") {
             Button(
-                onClick = { onSpeakResult(detectionResult) },
+                onClick = { onSpeakResult(spokenResult) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp)
@@ -528,6 +553,24 @@ fun formatBackendDetectionResult(rawResponse: String): String {
     }
 }
 
+fun formatBackendTtsResult(rawResponse: String): String {
+    if (rawResponse.startsWith("Erro")) {
+        return rawResponse
+    }
+
+    val objects = extractDetectedObjects(rawResponse)
+
+    if (objects.isEmpty()) {
+        return "Nenhum objeto detectado pelo backend."
+    }
+
+    return if (objects.size == 1) {
+        "Detectado pelo backend: ${objects.first()}."
+    } else {
+        "Backend detectou: ${objects.joinToString(", ")}."
+    }
+}
+
 fun formatLocalDetectionResult(result: LocalDetectionResult): String {
     if (result.detections.isEmpty()) {
         return "Nenhum objeto reconhecido com segurança. " +
@@ -589,6 +632,45 @@ fun formatLocalDetectionResult(result: LocalDetectionResult): String {
         else -> {
             "Nenhum objeto reconhecido com segurança. " +
                     "Tempo aproximado: ${result.inferenceMs} ms."
+        }
+    }
+}
+
+fun formatLocalTtsResult(result: LocalDetectionResult): String {
+    if (result.detections.isEmpty()) {
+        return "Não consegui reconhecer com segurança."
+    }
+
+    val highConfidenceDetections = result.detections.filter { it.confidence >= 0.70f }
+    val mediumConfidenceDetections = result.detections.filter { it.confidence in 0.40f..<0.70f }
+
+    return when {
+        highConfidenceDetections.isNotEmpty() -> {
+            val objectNames = highConfidenceDetections
+                .map { translateClassName(it.className) }
+                .distinct()
+
+            if (objectNames.size == 1) {
+                "Detectado: ${objectNames.first()}."
+            } else {
+                "Detectei: ${objectNames.joinToString(", ")}."
+            }
+        }
+
+        mediumConfidenceDetections.isNotEmpty() -> {
+            val objectNames = mediumConfidenceDetections
+                .map { translateClassName(it.className) }
+                .distinct()
+
+            if (objectNames.size == 1) {
+                "Possível: ${objectNames.first()}."
+            } else {
+                "Possíveis objetos: ${objectNames.joinToString(", ")}."
+            }
+        }
+
+        else -> {
+            "Não consegui reconhecer com segurança."
         }
     }
 }
