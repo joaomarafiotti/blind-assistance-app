@@ -2,12 +2,12 @@ package com.joaomarafiotti.blindassistanceapp
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.net.Uri
-import android.os.Bundle
 import android.provider.MediaStore
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
@@ -245,10 +245,7 @@ fun BlindAssistanceHomeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp)
-            .semantics {
-                contentDescription = "Tela principal do aplicativo de reconhecimento de objetos."
-            },
+            .padding(20.dp),
         verticalArrangement = Arrangement.Top
     ) {
         Text(
@@ -264,153 +261,54 @@ fun BlindAssistanceHomeScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Protótipo Android para reconhecimento de objetos em contexto educacional, com resposta por texto e voz.",
+            text = "Reconhecimento de objetos com resposta por voz e vibração.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
             modifier = Modifier.semantics {
-                contentDescription = "Protótipo para reconhecimento de objetos com resposta por texto e voz."
+                contentDescription =
+                    "Aplicativo de reconhecimento de objetos com resposta por voz e vibração."
             }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                val uri = createImageUri(context)
-
-                if (uri != null) {
-                    pendingCameraUri = uri
-                    cameraLauncher.launch(uri)
-                } else {
-                    updateResultAndSpeak(
-                        visualMessage = "Erro ao preparar captura da foto.",
-                        spokenMessage = "Erro ao preparar a câmera."
-                    )
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription =
-                        "Tirar foto e analisar objeto no dispositivo. Usa o modelo local sem depender do backend."
-                },
-            enabled = !isLoading,
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text("Tirar foto e analisar on-device")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                photoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription =
-                        "Selecionar imagem da galeria para teste de reconhecimento de objetos."
-                },
-            enabled = !isLoading,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary
-            )
-        ) {
-            Text("Selecionar imagem para teste")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                val uri = selectedImageUri
-
-                if (uri == null) {
-                    updateResultAndSpeak(
-                        visualMessage = "Selecione ou capture uma imagem primeiro.",
-                        spokenMessage = "Selecione ou capture uma imagem primeiro."
-                    )
-                    return@Button
-                }
-
-                analyzeImageOnDevice(uri)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription =
-                        "Analisar imagem selecionada usando inferência local no dispositivo."
-                },
-            enabled = selectedImageUri != null && !isLoading,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.tertiary,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        ) {
-            Text(if (isLoading) "Analisando..." else "Analisar on-device")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                val uri = selectedImageUri
-
-                if (uri == null) {
-                    updateResultAndSpeak(
-                        visualMessage = "Selecione uma imagem primeiro.",
-                        spokenMessage = "Selecione uma imagem primeiro."
-                    )
-                    return@Button
-                }
-
-                analyzeImageWithBackend(uri)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription =
-                        "Analisar imagem selecionada usando o backend. Modo de teste e comparação."
-                },
-            enabled = selectedImageUri != null && !isLoading,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        ) {
-            Text(if (isLoading) "Analisando..." else "Analisar via backend")
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        SectionCard(title = "Imagem") {
+        SectionCard(title = "Fluxo principal") {
             Text(
-                text = selectedImageName,
+                text = "Use este modo para capturar uma foto e receber o resultado por voz, texto e vibração.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 modifier = Modifier.semantics {
-                    contentDescription = "Imagem atual: $selectedImageName."
+                    contentDescription =
+                        "Fluxo principal. Capture uma foto e receba o resultado por voz, texto e vibração."
                 }
             )
 
-            if (selectedImageUri != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                Image(
-                    painter = rememberAsyncImagePainter(selectedImageUri),
-                    contentDescription = "Imagem selecionada ou capturada para análise de objetos.",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                )
+            Button(
+                onClick = {
+                    val uri = createImageUri(context)
+
+                    if (uri != null) {
+                        pendingCameraUri = uri
+                        cameraLauncher.launch(uri)
+                    } else {
+                        updateResultAndSpeak(
+                            visualMessage = "Erro ao preparar captura da foto.",
+                            spokenMessage = "Erro ao preparar a câmera."
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "Tirar foto e analisar objeto no dispositivo."
+                    },
+                enabled = !isLoading,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(if (isLoading) "Analisando..." else "Tirar foto e ouvir resultado")
             }
         }
 
@@ -455,22 +353,150 @@ fun BlindAssistanceHomeScreen(
                     }
                 }
             }
+
+            if (selectedImageUri != null && detectionResult != "Nenhum resultado ainda.") {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { onSpeakResult(spokenResult) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Ouvir novamente o resultado da análise."
+                        },
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Ouvir resultado novamente")
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (selectedImageUri != null && detectionResult != "Nenhum resultado ainda.") {
+        SectionCard(title = "Imagem atual") {
+            Text(
+                text = selectedImageName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.semantics {
+                    contentDescription = "Imagem atual: $selectedImageName."
+                }
+            )
+
+            if (selectedImageUri != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Image(
+                    painter = rememberAsyncImagePainter(selectedImageUri),
+                    contentDescription = "Imagem selecionada ou capturada para análise de objetos.",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        SectionCard(title = "Modo de teste e comparação") {
+            Text(
+                text = "Ferramentas para avaliar imagens selecionadas, comparar o modo on-device e testar o backend.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.semantics {
+                    contentDescription =
+                        "Modo de teste e comparação. Ferramentas para avaliar imagens selecionadas, comparar o modo on-device e testar o backend."
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Button(
-                onClick = { onSpeakResult(spokenResult) },
+                onClick = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics {
-                        contentDescription = "Ouvir novamente o resultado da análise."
+                        contentDescription =
+                            "Selecionar imagem da galeria para teste de reconhecimento de objetos."
                     },
                 enabled = !isLoading,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
             ) {
-                Text("Ouvir resultado novamente")
+                Text("Selecionar imagem para teste")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    val uri = selectedImageUri
+
+                    if (uri == null) {
+                        updateResultAndSpeak(
+                            visualMessage = "Selecione ou capture uma imagem primeiro.",
+                            spokenMessage = "Selecione ou capture uma imagem primeiro."
+                        )
+                        return@Button
+                    }
+
+                    analyzeImageOnDevice(uri)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "Analisar imagem selecionada usando inferência local no dispositivo."
+                    },
+                enabled = selectedImageUri != null && !isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text(if (isLoading) "Analisando..." else "Analisar imagem on-device")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    val uri = selectedImageUri
+
+                    if (uri == null) {
+                        updateResultAndSpeak(
+                            visualMessage = "Selecione uma imagem primeiro.",
+                            spokenMessage = "Selecione uma imagem primeiro."
+                        )
+                        return@Button
+                    }
+
+                    analyzeImageWithBackend(uri)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "Analisar imagem selecionada usando o backend. Modo de teste e comparação."
+                    },
+                enabled = selectedImageUri != null && !isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text(if (isLoading) "Analisando..." else "Analisar via backend")
             }
         }
     }
@@ -482,11 +508,7 @@ fun SectionCard(
     content: @Composable () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                contentDescription = "Seção: $title."
-            },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(
