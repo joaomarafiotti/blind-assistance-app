@@ -11,6 +11,23 @@ import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import kotlin.math.roundToInt
 
+data class TfliteModelConfig(
+    val displayName: String,
+    val assetName: String
+)
+
+object TfliteModelConfigs {
+    val YOLO26N_FLOAT32 = TfliteModelConfig(
+        displayName = "YOLO26n Float32",
+        assetName = "classroom_yolo26n_e50_best_float32.tflite"
+    )
+
+    val YOLOV8N_FLOAT32 = TfliteModelConfig(
+        displayName = "YOLOv8n Float32",
+        assetName = "classroom_yolov8n_e50_best_float32.tflite"
+    )
+}
+
 data class LocalDetection(
     val classId: Int,
     val className: String,
@@ -22,18 +39,21 @@ data class LocalDetectionResult(
     val detections: List<LocalDetection>,
     val inferenceMs: Long,
     val outputShape: String,
-    val rawCandidateCount: Int
+    val rawCandidateCount: Int,
+    val modelDisplayName: String,
+    val modelAssetName: String
 )
 
 class YoloTfliteDetector(
-    private val context: Context
+    private val context: Context,
+    private val modelConfig: TfliteModelConfig = TfliteModelConfigs.YOLO26N_FLOAT32
 ) {
     private val labels: List<String> by lazy {
         loadLabels("labels.txt")
     }
 
     private val interpreter: Interpreter by lazy {
-        val modelBuffer = loadModelFile("classroom_yolo26n_e50_best_float32.tflite")
+        val modelBuffer = loadModelFile(modelConfig.assetName)
         Interpreter(modelBuffer)
     }
 
@@ -47,7 +67,9 @@ class YoloTfliteDetector(
             detections = emptyList(),
             inferenceMs = 0,
             outputShape = "N/A",
-            rawCandidateCount = 0
+            rawCandidateCount = 0,
+            modelDisplayName = modelConfig.displayName,
+            modelAssetName = modelConfig.assetName
         )
 
         return runOnBitmap(
@@ -63,11 +85,6 @@ class YoloTfliteDetector(
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 640, 640, true)
         val inputBuffer = bitmapToFloat32ByteBuffer(resizedBitmap)
 
-        // Exported YOLO26n TFLite output:
-        // shape: 1 x 300 x 6
-        //
-        // Expected row layout:
-        // [x1, y1, x2, y2, confidence, class_id]
         val output = Array(1) { Array(300) { FloatArray(6) } }
 
         val start = System.nanoTime()
@@ -85,7 +102,9 @@ class YoloTfliteDetector(
             detections = detections,
             inferenceMs = inferenceMs,
             outputShape = "1 x 300 x 6",
-            rawCandidateCount = output[0].size
+            rawCandidateCount = output[0].size,
+            modelDisplayName = modelConfig.displayName,
+            modelAssetName = modelConfig.assetName
         )
     }
 
@@ -117,7 +136,6 @@ class YoloTfliteDetector(
             )
         }
 
-        // Keep the highest-confidence detection for each class.
         return parsedDetections
             .groupBy { it.classId }
             .mapNotNull { (_, detectionsForClass) ->
@@ -127,8 +145,6 @@ class YoloTfliteDetector(
     }
 
     private fun parseClassAndConfidence(row: FloatArray): Pair<Int, Float>? {
-        // Most likely layout:
-        // [x1, y1, x2, y2, confidence, class_id]
         val confidenceA = row[4]
         val classIdA = row[5].roundToInt()
 
@@ -136,8 +152,6 @@ class YoloTfliteDetector(
             return classIdA to confidenceA
         }
 
-        // Fallback layout, in case model output comes as:
-        // [x1, y1, x2, y2, class_id, confidence]
         val classIdB = row[4].roundToInt()
         val confidenceB = row[5]
 

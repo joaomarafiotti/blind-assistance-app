@@ -115,8 +115,22 @@ fun BlindAssistanceHomeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val localDetector = remember {
-        YoloTfliteDetector(context.applicationContext)
+    val yolo26nDetector = remember {
+        YoloTfliteDetector(
+            context = context.applicationContext,
+            modelConfig = TfliteModelConfigs.YOLO26N_FLOAT32
+        )
+    }
+
+    val yolov8nDetector = remember {
+        YoloTfliteDetector(
+            context = context.applicationContext,
+            modelConfig = TfliteModelConfigs.YOLOV8N_FLOAT32
+        )
+    }
+
+    var selectedLocalModelConfig by remember {
+        mutableStateOf(TfliteModelConfigs.YOLO26N_FLOAT32)
     }
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -126,6 +140,13 @@ fun BlindAssistanceHomeScreen(
     var detectedObjects by remember { mutableStateOf(listOf<String>()) }
     var isLoading by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun detectorFor(modelConfig: TfliteModelConfig): YoloTfliteDetector {
+        return when (modelConfig.assetName) {
+            TfliteModelConfigs.YOLOV8N_FLOAT32.assetName -> yolov8nDetector
+            else -> yolo26nDetector
+        }
+    }
 
     fun resetImage(uri: Uri, label: String) {
         selectedImageUri = uri
@@ -175,15 +196,20 @@ fun BlindAssistanceHomeScreen(
         }
     }
 
-    fun analyzeImageOnDevice(uri: Uri) {
+    fun analyzeImageOnDevice(
+        uri: Uri,
+        modelConfig: TfliteModelConfig = selectedLocalModelConfig
+    ) {
+        val detector = detectorFor(modelConfig)
+
         isLoading = true
-        detectionResult = "Executando inferência local no dispositivo..."
+        detectionResult = "Executando inferência local no dispositivo com ${modelConfig.displayName}..."
         spokenResult = "Analisando imagem."
         detectedObjects = emptyList()
 
         scope.launch {
             val localResult = withContext(Dispatchers.Default) {
-                localDetector.runOnImageUri(uri)
+                detector.runOnImageUri(uri)
             }
 
             val formattedResult = formatLocalDetectionResult(localResult)
@@ -231,7 +257,10 @@ fun BlindAssistanceHomeScreen(
                 label = "Foto capturada pela câmera"
             )
 
-            analyzeImageOnDevice(uri)
+            analyzeImageOnDevice(
+                uri = uri,
+                modelConfig = selectedLocalModelConfig
+            )
         } else {
             updateResultAndSpeak(
                 visualMessage = "Captura cancelada ou não concluída.",
@@ -283,6 +312,19 @@ fun BlindAssistanceHomeScreen(
                 }
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Modelo local atual: ${selectedLocalModelConfig.displayName}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.semantics {
+                    contentDescription =
+                        "Modelo local atual: ${selectedLocalModelConfig.displayName}."
+                }
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
@@ -303,7 +345,7 @@ fun BlindAssistanceHomeScreen(
                     .fillMaxWidth()
                     .semantics {
                         contentDescription =
-                            "Tirar foto e analisar objeto no dispositivo."
+                            "Tirar foto e analisar objeto no dispositivo com o modelo ${selectedLocalModelConfig.displayName}."
                     },
                 enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp)
@@ -402,16 +444,87 @@ fun BlindAssistanceHomeScreen(
 
         SectionCard(title = "Modo de teste e comparação") {
             Text(
-                text = "Ferramentas para avaliar imagens selecionadas, comparar o modo on-device e testar o backend.",
+                text = "Ferramentas para avaliar imagens selecionadas, comparar modelos on-device e testar o backend.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 modifier = Modifier.semantics {
                     contentDescription =
-                        "Modo de teste e comparação. Ferramentas para avaliar imagens selecionadas, comparar o modo on-device e testar o backend."
+                        "Modo de teste e comparação. Ferramentas para avaliar imagens selecionadas, comparar modelos on-device e testar o backend."
                 }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Modelo local selecionado: ${selectedLocalModelConfig.displayName}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.semantics {
+                    contentDescription =
+                        "Modelo local selecionado: ${selectedLocalModelConfig.displayName}."
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    selectedLocalModelConfig = TfliteModelConfigs.YOLO26N_FLOAT32
+                    updateResultAndSpeak(
+                        visualMessage = "Modelo local selecionado: ${TfliteModelConfigs.YOLO26N_FLOAT32.displayName}.",
+                        spokenMessage = "Modelo YOLO26n selecionado."
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "Selecionar modelo YOLO26n Float32 para inferência local."
+                    },
+                enabled = !isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selectedLocalModelConfig.assetName == TfliteModelConfigs.YOLO26N_FLOAT32.assetName) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    }
+                )
+            ) {
+                Text("Usar YOLO26n Float32")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    selectedLocalModelConfig = TfliteModelConfigs.YOLOV8N_FLOAT32
+                    updateResultAndSpeak(
+                        visualMessage = "Modelo local selecionado: ${TfliteModelConfigs.YOLOV8N_FLOAT32.displayName}.",
+                        spokenMessage = "Modelo YOLOv8n selecionado."
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "Selecionar modelo YOLOv8n Float32 para inferência local."
+                    },
+                enabled = !isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selectedLocalModelConfig.assetName == TfliteModelConfigs.YOLOV8N_FLOAT32.assetName) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    }
+                )
+            ) {
+                Text("Usar YOLOv8n Float32")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -448,13 +561,16 @@ fun BlindAssistanceHomeScreen(
                         return@Button
                     }
 
-                    analyzeImageOnDevice(uri)
+                    analyzeImageOnDevice(
+                        uri = uri,
+                        modelConfig = selectedLocalModelConfig
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics {
                         contentDescription =
-                            "Analisar imagem selecionada usando inferência local no dispositivo."
+                            "Analisar imagem selecionada usando o modelo local ${selectedLocalModelConfig.displayName}."
                     },
                 enabled = selectedImageUri != null && !isLoading,
                 shape = RoundedCornerShape(16.dp),
@@ -464,7 +580,13 @@ fun BlindAssistanceHomeScreen(
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
-                Text(if (isLoading) "Analisando..." else "Analisar imagem on-device")
+                Text(
+                    if (isLoading) {
+                        "Analisando..."
+                    } else {
+                        "Analisar com ${selectedLocalModelConfig.displayName}"
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -664,7 +786,8 @@ fun formatBackendTtsResult(rawResponse: String): String {
 
 fun formatLocalDetectionResult(result: LocalDetectionResult): String {
     if (result.detections.isEmpty()) {
-        return "Nenhum objeto reconhecido com segurança. " +
+        return "Modelo: ${result.modelDisplayName}. " +
+                "Nenhum objeto reconhecido com segurança. " +
                 "Tente aproximar o objeto, melhorar a iluminação ou tirar outra foto. " +
                 "Tempo aproximado: ${result.inferenceMs} ms."
     }
@@ -699,7 +822,8 @@ fun formatLocalDetectionResult(result: LocalDetectionResult): String {
                 ""
             }
 
-            "Detectei on-device: ${detectedNames.joinToString(", ")}. " +
+            "Modelo: ${result.modelDisplayName}. " +
+                    "Detectei on-device: ${detectedNames.joinToString(", ")}. " +
                     "Confianças principais: $mainConfidences." +
                     possiblePart +
                     " Tempo aproximado: ${result.inferenceMs} ms."
@@ -714,14 +838,16 @@ fun formatLocalDetectionResult(result: LocalDetectionResult): String {
                 .take(3)
                 .joinToString(", ") { formatConfidence(it) }
 
-            "Possível detecção on-device: ${possibleNames.joinToString(", ")}. " +
+            "Modelo: ${result.modelDisplayName}. " +
+                    "Possível detecção on-device: ${possibleNames.joinToString(", ")}. " +
                     "Confiança moderada: $mainConfidences. " +
                     "Tente confirmar com outra foto. " +
                     "Tempo aproximado: ${result.inferenceMs} ms."
         }
 
         else -> {
-            "Nenhum objeto reconhecido com segurança. " +
+            "Modelo: ${result.modelDisplayName}. " +
+                    "Nenhum objeto reconhecido com segurança. " +
                     "Tempo aproximado: ${result.inferenceMs} ms."
         }
     }
