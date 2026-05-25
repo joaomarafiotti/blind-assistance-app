@@ -1,0 +1,11 @@
+﻿test_id,image_file,expected_class,input_method,detected_objects,top_confidence_percent,inference_ms,status,observation
+1,01_table.jpg,table,gallery,table,97,207,correto,detectou a classe esperada com alta confiança no celular físico
+2,02_chair.jpg,chair,gallery,cadeira,94,193,correto,detectou a classe esperada com alta confiança no celular físico
+3,03_whiteboard.jpg,whiteboard,gallery,quadro branco,96,134,correto,detectou a classe esperada com alta confiança no celular físico
+7,07_trash_can.jpg,trash-can,gallery,,0,126,nenhuma_deteccao,não reconheceu a lixeira com segurança no celular físico
+8,08_eraser.jpg,eraser,gallery,apontador,63,190,erro,confundiu borracha com apontador em confiança moderada
+10,10_pen.jpg,pen,gallery,caneta,89,129,correto,detectou a classe esperada com alta confiança no celular físico
+11,11_book.jpg,book,gallery,livro,93,148,correto,detectou a classe esperada com alta confiança no celular físico
+15,15_laptop.jpg,laptop,gallery,notebook,98,182,correto,detectou a classe esperada com alta confiança no celular físico
+17,17_bag.jpg,bag,gallery,bolsa,91,168,correto,detectou a classe esperada com alta confiança no celular físico
+19,19_shoes.jpg,shoes,gallery,sapato,64,196,correto,detectou a classe esperada com confiança moderada no celular físico
