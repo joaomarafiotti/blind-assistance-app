@@ -115,14 +115,21 @@ fun BlindAssistanceHomeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val yolo26nDetector = remember {
+    val yolo26nFloat32Detector = remember {
         YoloTfliteDetector(
             context = context.applicationContext,
             modelConfig = TfliteModelConfigs.YOLO26N_FLOAT32
         )
     }
 
-    val yolov8nDetector = remember {
+    val yolo26nFloat16Detector = remember {
+        YoloTfliteDetector(
+            context = context.applicationContext,
+            modelConfig = TfliteModelConfigs.YOLO26N_FLOAT16
+        )
+    }
+
+    val yolov8nFloat32Detector = remember {
         YoloTfliteDetector(
             context = context.applicationContext,
             modelConfig = TfliteModelConfigs.YOLOV8N_FLOAT32
@@ -143,8 +150,9 @@ fun BlindAssistanceHomeScreen(
 
     fun detectorFor(modelConfig: TfliteModelConfig): YoloTfliteDetector {
         return when (modelConfig.assetName) {
-            TfliteModelConfigs.YOLOV8N_FLOAT32.assetName -> yolov8nDetector
-            else -> yolo26nDetector
+            TfliteModelConfigs.YOLO26N_FLOAT16.assetName -> yolo26nFloat16Detector
+            TfliteModelConfigs.YOLOV8N_FLOAT32.assetName -> yolov8nFloat32Detector
+            else -> yolo26nFloat32Detector
         }
     }
 
@@ -493,6 +501,35 @@ fun BlindAssistanceHomeScreen(
                 )
             ) {
                 Text("Usar YOLO26n Float32")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    selectedLocalModelConfig = TfliteModelConfigs.YOLO26N_FLOAT16
+                    updateResultAndSpeak(
+                        visualMessage = "Modelo local selecionado: ${TfliteModelConfigs.YOLO26N_FLOAT16.displayName}.",
+                        spokenMessage = "Modelo YOLO26n Float16 selecionado."
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "Selecionar modelo YOLO26n Float16 para inferência local."
+                    },
+                enabled = !isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selectedLocalModelConfig.assetName == TfliteModelConfigs.YOLO26N_FLOAT16.assetName) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    }
+                )
+            ) {
+                Text("Usar YOLO26n Float16")
             }
 
             Spacer(modifier = Modifier.height(12.dp))

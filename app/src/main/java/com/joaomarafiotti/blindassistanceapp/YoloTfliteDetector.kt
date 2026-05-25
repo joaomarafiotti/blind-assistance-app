@@ -22,6 +22,11 @@ object TfliteModelConfigs {
         assetName = "classroom_yolo26n_e50_best_float32.tflite"
     )
 
+    val YOLO26N_FLOAT16 = TfliteModelConfig(
+        displayName = "YOLO26n Float16",
+        assetName = "classroom_yolo26n_e50_best_float16.tflite"
+    )
+
     val YOLOV8N_FLOAT32 = TfliteModelConfig(
         displayName = "YOLOv8n Float32",
         assetName = "classroom_yolov8n_e50_best_float32.tflite"
