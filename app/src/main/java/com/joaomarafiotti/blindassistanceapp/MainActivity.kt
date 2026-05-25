@@ -44,6 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
@@ -229,13 +234,20 @@ fun BlindAssistanceHomeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp),
+            .padding(20.dp)
+            .semantics {
+                contentDescription = "Tela principal do aplicativo de reconhecimento de objetos."
+            },
         verticalArrangement = Arrangement.Top
     ) {
         Text(
             text = "Blind Assistance App",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics {
+                heading()
+                contentDescription = "Blind Assistance App."
+            }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -243,7 +255,10 @@ fun BlindAssistanceHomeScreen(
         Text(
             text = "Protótipo Android para reconhecimento de objetos em contexto educacional, com resposta por texto e voz.",
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            modifier = Modifier.semantics {
+                contentDescription = "Protótipo para reconhecimento de objetos com resposta por texto e voz."
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -262,7 +277,12 @@ fun BlindAssistanceHomeScreen(
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "Tirar foto e analisar objeto no dispositivo. Usa o modelo local sem depender do backend."
+                },
             enabled = !isLoading,
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -277,7 +297,12 @@ fun BlindAssistanceHomeScreen(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "Selecionar imagem da galeria para teste de reconhecimento de objetos."
+                },
             enabled = !isLoading,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
@@ -303,7 +328,12 @@ fun BlindAssistanceHomeScreen(
 
                 analyzeImageOnDevice(uri)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "Analisar imagem selecionada usando inferência local no dispositivo."
+                },
             enabled = selectedImageUri != null && !isLoading,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
@@ -331,7 +361,12 @@ fun BlindAssistanceHomeScreen(
 
                 analyzeImageWithBackend(uri)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "Analisar imagem selecionada usando o backend. Modo de teste e comparação."
+                },
             enabled = selectedImageUri != null && !isLoading,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
@@ -348,7 +383,10 @@ fun BlindAssistanceHomeScreen(
             Text(
                 text = selectedImageName,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.semantics {
+                    contentDescription = "Imagem atual: $selectedImageName."
+                }
             )
 
             if (selectedImageUri != null) {
@@ -356,7 +394,7 @@ fun BlindAssistanceHomeScreen(
 
                 Image(
                     painter = rememberAsyncImagePainter(selectedImageUri),
-                    contentDescription = "Imagem selecionada ou capturada para análise de objetos",
+                    contentDescription = "Imagem selecionada ou capturada para análise de objetos.",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -369,7 +407,12 @@ fun BlindAssistanceHomeScreen(
 
         SectionCard(title = "Resultado") {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = "Resultado da análise: $spokenResult"
+                    },
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
@@ -391,7 +434,10 @@ fun BlindAssistanceHomeScreen(
                                 AssistChip(
                                     onClick = { },
                                     label = { Text(obj) },
-                                    colors = AssistChipDefaults.assistChipColors()
+                                    colors = AssistChipDefaults.assistChipColors(),
+                                    modifier = Modifier.semantics {
+                                        contentDescription = "Objeto detectado: $obj."
+                                    }
                                 )
                             }
                         }
@@ -405,7 +451,11 @@ fun BlindAssistanceHomeScreen(
         if (selectedImageUri != null && detectionResult != "Nenhum resultado ainda.") {
             Button(
                 onClick = { onSpeakResult(spokenResult) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Ouvir novamente o resultado da análise."
+                    },
                 enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -421,7 +471,11 @@ fun SectionCard(
     content: @Composable () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Seção: $title."
+            },
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(
@@ -432,7 +486,11 @@ fun SectionCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.semantics {
+                    heading()
+                    contentDescription = title
+                }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
