@@ -1,0 +1,21 @@
+﻿test_id,image_context,expected_object,in_dataset,detected_objects,top_confidence_percent,inference_ms,status,observation
+1,lapis real,lapis,nao,,0,295,fora_do_dataset_sem_deteccao,lapis nao pertence as classes do dataset e nao foi reconhecido com seguranca
+2,caneta real,pen,sim,,0,331,nenhuma_deteccao,nao reconheceu uma caneta real apesar da classe existir no dataset
+3,livro real,book,sim,mural,79,189,erro,confundiu livro real com mural em alta confianca
+4,caderno real,caderno,nao,mural,58,281,fora_do_dataset_confusao_moderada,caderno nao pertence diretamente as classes e foi confundido com mural
+5,cadeira real,chair,sim,,0,157,nenhuma_deteccao,nao reconheceu cadeira real com seguranca
+6,mesa real,table,sim,,0,194,nenhuma_deteccao,nao reconheceu mesa real com seguranca em cena com varios objetos
+7,regua real,ruler,sim,,0,197,nenhuma_deteccao,nao reconheceu regua real com seguranca
+8,sapato real,shoes,sim,sapato,73,246,correto,detectou sapato real com confianca alta
+9,mochila real,bag,sim,sapato; bolsa,75,200,parcial,detectou bolsa como objeto secundario mas classificou sapato como principal
+10,lixeira real,trash-can,sim,bolsa,64,207,erro,confundiu lixeira real com bolsa em confianca moderada
+11,ventilador real,fan,sim,ventilador,96,178,correto,detectou ventilador real com confianca alta
+12,controle remoto real,remote-control,sim,controle remoto,54,173,correto,detectou controle remoto real com confianca moderada
+13,televisao real,televisao,nao,,0,189,fora_do_dataset_sem_deteccao,televisao nao pertence as classes do dataset e nao foi reconhecida com seguranca
+14,bone real,hat,sim,sapato,68,256,erro,confundiu bone com sapato em confianca moderada
+15,tesoura real,scissor,sim,,0,319,nenhuma_deteccao,nao reconheceu tesoura real com seguranca
+16,apontador real,sharpener,sim,apontador,65,194,correto,detectou apontador real com confianca moderada
+17,borracha real,eraser,sim,borracha,78,245,correto,detectou borracha real com confianca alta
+18,notebook real,laptop,sim,,0,166,nenhuma_deteccao,nao reconheceu notebook real com seguranca
+19,calca real,pants,sim,sapato,65,237,erro,confundiu calca com sapato em confianca moderada
+20,grifador real,grifador,nao,borracha,58,216,fora_do_dataset_confusao_moderada,grifador nao pertence as classes do dataset e foi confundido com borracha
