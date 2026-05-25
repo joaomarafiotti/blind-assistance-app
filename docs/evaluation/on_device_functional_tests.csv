@@ -1,0 +1,21 @@
+test_id,image_file,expected_class,input_method,detected_objects,top_confidence_percent,inference_ms,status,observation
+1,01_table.jpg,table,gallery,table,97,713,correto,detectou a classe esperada com alta confiança
+2,02_chair.jpg,chair,gallery,cadeira,94,301,correto,detectou a classe esperada com alta confiança
+3,03_whiteboard.jpg,whiteboard,gallery,quadro branco,96,380,correto,detectou a classe esperada com alta confiança
+4,04_bookshelf.jpg,bookshelf,gallery,estante,91,355,correto,detectou a classe esperada com alta confiança
+5,05_clock.jpeg,clock,gallery,relógio,93,445,correto,detectou a classe esperada com alta confiança
+6,06_wall_magazine.jpg,wall-magazine,gallery,mural,74,404,correto,detectou a classe esperada com confiança alta
+7,07_trash_can.jpg,trash-can,gallery,,0,403,nenhuma_deteccao,não reconheceu a lixeira com segurança
+8,08_eraser.jpg,eraser,gallery,apontador,63,358,erro,confundiu borracha com apontador em confiança moderada
+9,09_sharpener.jpg,sharpener,gallery,apontador; borracha,94,352,parcial,detectou apontador mas também adicionou borracha com confiança alta
+10,10_pen.jpg,pen,gallery,caneta,89,331,correto,detectou a classe esperada com alta confiança
+11,11_book.jpg,book,gallery,livro,93,306,correto,detectou a classe esperada com alta confiança
+12,12_ruler.jpg,ruler,gallery,régua,90,314,correto,detectou a classe esperada com alta confiança
+13,13_scissor.jpg,scissor,gallery,tesoura,98,356,correto,detectou a classe esperada com alta confiança
+14,14_fan.jpg,fan,gallery,ventilador,96,331,correto,detectou a classe esperada com alta confiança
+15,15_laptop.jpg,laptop,gallery,notebook,98,345,correto,detectou a classe esperada com alta confiança
+16,16_remote_control.jpg,remote-control,gallery,controle remoto,79,317,correto,detectou a classe esperada com confiança alta
+17,17_bag.jpg,bag,gallery,bolsa,91,340,correto,detectou a classe esperada com alta confiança
+18,18_pants.jpg,pants,gallery,calça,89,324,correto,detectou a classe esperada com alta confiança
+19,19_shoes.jpg,shoes,gallery,sapato,64,348,correto,detectou a classe esperada com confiança moderada
+20,20_hat.jpg,hat,gallery,chapéu,96,339,correto,detectou a classe esperada com alta confiança
