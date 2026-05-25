@@ -3,12 +3,15 @@ package com.joaomarafiotti.blindassistanceapp
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.net.Uri
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 data class TfliteModelConfig(
@@ -87,8 +90,8 @@ class YoloTfliteDetector(
         bitmap: Bitmap,
         confidenceThreshold: Float
     ): LocalDetectionResult {
-        val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 640, 640, true)
-        val inputBuffer = bitmapToFloat32ByteBuffer(resizedBitmap)
+        val inputBitmap = letterboxBitmap(bitmap, 640)
+        val inputBuffer = bitmapToFloat32ByteBuffer(inputBitmap)
 
         val output = Array(1) { Array(300) { FloatArray(6) } }
 
@@ -165,6 +168,39 @@ class YoloTfliteDetector(
         }
 
         return null
+    }
+
+    private fun letterboxBitmap(source: Bitmap, targetSize: Int): Bitmap {
+        val scale = min(
+            targetSize / source.width.toFloat(),
+            targetSize / source.height.toFloat()
+        )
+
+        val resizedWidth = (source.width * scale).roundToInt()
+        val resizedHeight = (source.height * scale).roundToInt()
+
+        val resizedBitmap = Bitmap.createScaledBitmap(
+            source,
+            resizedWidth,
+            resizedHeight,
+            true
+        )
+
+        val outputBitmap = Bitmap.createBitmap(
+            targetSize,
+            targetSize,
+            Bitmap.Config.ARGB_8888
+        )
+
+        val canvas = Canvas(outputBitmap)
+        canvas.drawColor(Color.rgb(114, 114, 114))
+
+        val left = (targetSize - resizedWidth) / 2f
+        val top = (targetSize - resizedHeight) / 2f
+
+        canvas.drawBitmap(resizedBitmap, left, top, null)
+
+        return outputBitmap
     }
 
     private fun bitmapToFloat32ByteBuffer(bitmap: Bitmap): ByteBuffer {
