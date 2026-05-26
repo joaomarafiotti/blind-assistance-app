@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -191,6 +195,7 @@ private fun CameraPreviewContent(
 
                                         if (speechText != null) {
                                             currentOnLiveDetectionMessage(speechText)
+                                            vibrateForLiveDetection(context, result)
                                         }
                                     }
                                 } catch (exception: Exception) {
@@ -352,6 +357,46 @@ private fun Bitmap.rotate(rotationDegrees: Int): Bitmap {
         matrix,
         true
     )
+}
+
+private fun vibrateForLiveDetection(
+    context: Context,
+    result: LocalDetectionResult
+) {
+    val topDetection = result.detections.firstOrNull() ?: return
+    val vibrator = getVibrator(context) ?: return
+
+    if (!vibrator.hasVibrator()) {
+        return
+    }
+
+    val vibrationPattern = if (topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+        longArrayOf(0, 90)
+    } else {
+        longArrayOf(0, 60, 80, 60)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(
+            VibrationEffect.createWaveform(
+                vibrationPattern,
+                -1
+            )
+        )
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(vibrationPattern, -1)
+    }
+}
+
+private fun getVibrator(context: Context): Vibrator? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val vibratorManager = context.getSystemService(VibratorManager::class.java)
+        vibratorManager?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    }
 }
 
 private fun hasCameraPermission(context: Context): Boolean {
