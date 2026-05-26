@@ -51,9 +51,13 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 
-private const val LIVE_ANALYSIS_INTERVAL_MS = 2500L
-private const val LIVE_SPEECH_COOLDOWN_MS = 5000L
-private const val HIGH_CONFIDENCE_THRESHOLD = 0.65f
+private const val LIVE_ANALYSIS_INTERVAL_MS = 3500L
+private const val LIVE_MIN_TIME_BETWEEN_SPEECH_MS = 4500L
+private const val LIVE_SAME_OBJECT_COOLDOWN_MS = 10000L
+
+private const val HIGH_CONFIDENCE_THRESHOLD = 0.80f
+private const val MEDIUM_CONFIDENCE_THRESHOLD = 0.50f
+private const val LOW_CONFIDENCE_THRESHOLD = 0.30f
 
 @Composable
 fun CameraPreviewScreen(
@@ -185,7 +189,10 @@ private fun CameraPreviewContent(
                                             "Não foi possível processar a imagem da câmera."
                                     }
                                 } else {
-                                    val result = detector.runOnBitmap(bitmap)
+                                    val result = detector.runOnBitmap(
+                                        bitmap = bitmap,
+                                        confidenceThreshold = LOW_CONFIDENCE_THRESHOLD
+                                    )
 
                                     val liveText = formatLiveDetectionResult(
                                         result = result,
@@ -287,13 +294,14 @@ private fun formatLiveDetectionResult(
     } else {
         val translatedName = translateClassName(topDetection.className)
         val confidencePercent = (topDetection.confidence * 100).roundToInt()
-        val confidenceLabel = if (topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+        val confidenceLevel = confidenceLevelLabel(topDetection.confidence)
+        val detectionLabel = if (topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
             "Detectado"
         } else {
             "Possível"
         }
 
-        "$confidenceLabel: $translatedName $confidencePercent% | ${result.inferenceMs} ms | análise $frameCount"
+        "$detectionLabel: $translatedName $confidencePercent% | $confidenceLevel | ${result.inferenceMs} ms | análise $frameCount"
     }
 }
 
@@ -307,25 +315,49 @@ private fun buildLiveSpeechMessage(
 
     val objectName = translateClassName(topDetection.className)
     val confidence = topDetection.confidence
-    val confidencePercent = (confidence * 100).roundToInt()
-
     val previousObject = lastSpokenObject.get()
     val previousSpeechTime = lastSpeechTimestamp.get()
 
     val isSameObject = previousObject == objectName
-    val isInsideCooldown = now - previousSpeechTime < LIVE_SPEECH_COOLDOWN_MS
+    val isInsideGlobalCooldown = now - previousSpeechTime < LIVE_MIN_TIME_BETWEEN_SPEECH_MS
+    val isInsideSameObjectCooldown = now - previousSpeechTime < LIVE_SAME_OBJECT_COOLDOWN_MS
 
-    if (isSameObject && isInsideCooldown) {
+    if (isInsideGlobalCooldown) {
+        return null
+    }
+
+    if (isSameObject && isInsideSameObjectCooldown) {
         return null
     }
 
     lastSpokenObject.set(objectName)
     lastSpeechTimestamp.set(now)
 
-    return if (confidence >= HIGH_CONFIDENCE_THRESHOLD) {
-        "Detectado: $objectName. Confiança $confidencePercent por cento."
-    } else {
-        "Possível objeto: $objectName. Confiança $confidencePercent por cento."
+    return when {
+        confidence >= HIGH_CONFIDENCE_THRESHOLD -> {
+            "$objectName detectado. Confiança alta."
+        }
+
+        confidence >= MEDIUM_CONFIDENCE_THRESHOLD -> {
+            "Possível objeto: $objectName. Confiança média."
+        }
+
+        confidence >= LOW_CONFIDENCE_THRESHOLD -> {
+            "Possível objeto: $objectName. Confiança baixa."
+        }
+
+        else -> {
+            null
+        }
+    }
+}
+
+private fun confidenceLevelLabel(confidence: Float): String {
+    return when {
+        confidence >= HIGH_CONFIDENCE_THRESHOLD -> "confiança alta"
+        confidence >= MEDIUM_CONFIDENCE_THRESHOLD -> "confiança média"
+        confidence >= LOW_CONFIDENCE_THRESHOLD -> "confiança baixa"
+        else -> "sem confiança suficiente"
     }
 }
 
@@ -392,10 +424,18 @@ private fun vibrateForLiveDetection(
         return
     }
 
-    val vibrationPattern = if (topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
-        longArrayOf(0, 90)
-    } else {
-        longArrayOf(0, 60, 80, 60)
+    val vibrationPattern = when {
+        topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD -> {
+            longArrayOf(0, 70)
+        }
+
+        topDetection.confidence >= MEDIUM_CONFIDENCE_THRESHOLD -> {
+            longArrayOf(0, 50, 90, 50)
+        }
+
+        else -> {
+            longArrayOf(0, 40)
+        }
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
