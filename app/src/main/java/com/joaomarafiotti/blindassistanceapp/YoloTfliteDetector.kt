@@ -86,9 +86,9 @@ class YoloTfliteDetector(
         )
     }
 
-    private fun runOnBitmap(
+    fun runOnBitmap(
         bitmap: Bitmap,
-        confidenceThreshold: Float
+        confidenceThreshold: Float = 0.40f
     ): LocalDetectionResult {
         val inputBitmap = letterboxBitmap(bitmap, 640)
         val inputBuffer = bitmapToFloat32ByteBuffer(inputBitmap)

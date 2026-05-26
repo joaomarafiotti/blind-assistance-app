@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,6 +39,7 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.roundToInt
 
 @Composable
 fun CameraPreviewScreen(
@@ -78,6 +80,10 @@ private fun CameraPreviewContent(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val detector = remember(context) {
+        YoloTfliteDetector(context.applicationContext)
+    }
+
     var analysisStatusText by remember {
         mutableStateOf("Aguardando frames da câmera...")
     }
@@ -90,7 +96,7 @@ private fun CameraPreviewContent(
         ContextCompat.getMainExecutor(context)
     }
 
-    val convertedFrameCount = remember {
+    val analyzedFrameCount = remember {
         AtomicInteger(0)
     }
 
@@ -135,15 +141,36 @@ private fun CameraPreviewContent(
                             now - last >= analysisIntervalMs &&
                             lastAnalysisTimestamp.compareAndSet(last, now)
                         ) {
-                            val bitmap = imageProxy.toBitmapFromRgba8888()
-                            val count = convertedFrameCount.incrementAndGet()
+                            val count = analyzedFrameCount.incrementAndGet()
                             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
-                            mainExecutor.execute {
-                                analysisStatusText = if (bitmap != null) {
-                                    "Frames convertidos: $count | Bitmap: ${bitmap.width}x${bitmap.height} | rotação: ${rotationDegrees}°"
-                                } else {
-                                    "Falha ao converter frame da câmera para Bitmap."
+                            val bitmap = imageProxy
+                                .toBitmapFromRgba8888()
+                                ?.rotate(rotationDegrees)
+
+                            if (bitmap == null) {
+                                mainExecutor.execute {
+                                    analysisStatusText =
+                                        "Falha ao converter frame da câmera para Bitmap."
+                                }
+                            } else {
+                                try {
+                                    val result = detector.runOnBitmap(bitmap)
+                                    val liveText = formatLiveDetectionResult(
+                                        result = result,
+                                        frameCount = count
+                                    )
+
+                                    mainExecutor.execute {
+                                        analysisStatusText = liveText
+                                    }
+                                } catch (exception: Exception) {
+                                    exception.printStackTrace()
+
+                                    mainExecutor.execute {
+                                        analysisStatusText =
+                                            "Erro ao executar detecção no frame da câmera."
+                                    }
                                 }
                             }
                         }
@@ -200,6 +227,20 @@ private fun CameraPreviewContent(
     }
 }
 
+private fun formatLiveDetectionResult(
+    result: LocalDetectionResult,
+    frameCount: Int
+): String {
+    val topDetection = result.detections.firstOrNull()
+
+    return if (topDetection == null) {
+        "Frame $frameCount | Nenhum objeto reconhecido | ${result.inferenceMs} ms"
+    } else {
+        val confidencePercent = (topDetection.confidence * 100).roundToInt()
+        "Frame $frameCount | ${topDetection.className} $confidencePercent% | ${result.inferenceMs} ms"
+    }
+}
+
 private fun ImageProxy.toBitmapFromRgba8888(): Bitmap? {
     val plane = planes.firstOrNull() ?: return null
     val buffer = plane.buffer
@@ -230,6 +271,26 @@ private fun ImageProxy.toBitmapFromRgba8888(): Bitmap? {
             height
         )
     }
+}
+
+private fun Bitmap.rotate(rotationDegrees: Int): Bitmap {
+    if (rotationDegrees == 0) {
+        return this
+    }
+
+    val matrix = Matrix().apply {
+        postRotate(rotationDegrees.toFloat())
+    }
+
+    return Bitmap.createBitmap(
+        this,
+        0,
+        0,
+        width,
+        height,
+        matrix,
+        true
+    )
 }
 
 private fun hasCameraPermission(context: Context): Boolean {
