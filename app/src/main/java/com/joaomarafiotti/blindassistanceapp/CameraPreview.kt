@@ -3,11 +3,13 @@ package com.joaomarafiotti.blindassistanceapp
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -88,7 +90,7 @@ private fun CameraPreviewContent(
         ContextCompat.getMainExecutor(context)
     }
 
-    val analyzedFrameCount = remember {
+    val convertedFrameCount = remember {
         AtomicInteger(0)
     }
 
@@ -121,6 +123,7 @@ private fun CameraPreviewContent(
                 }
 
             val imageAnalysis = ImageAnalysis.Builder()
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also { analysis ->
@@ -132,14 +135,16 @@ private fun CameraPreviewContent(
                             now - last >= analysisIntervalMs &&
                             lastAnalysisTimestamp.compareAndSet(last, now)
                         ) {
-                            val count = analyzedFrameCount.incrementAndGet()
-                            val width = imageProxy.width
-                            val height = imageProxy.height
+                            val bitmap = imageProxy.toBitmapFromRgba8888()
+                            val count = convertedFrameCount.incrementAndGet()
                             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
                             mainExecutor.execute {
-                                analysisStatusText =
-                                    "Frames analisados: $count | ${width}x${height} | rotação: ${rotationDegrees}°"
+                                analysisStatusText = if (bitmap != null) {
+                                    "Frames convertidos: $count | Bitmap: ${bitmap.width}x${bitmap.height} | rotação: ${rotationDegrees}°"
+                                } else {
+                                    "Falha ao converter frame da câmera para Bitmap."
+                                }
                             }
                         }
 
@@ -191,6 +196,38 @@ private fun CameraPreviewContent(
                 .semantics {
                     contentDescription = analysisStatusText
                 }
+        )
+    }
+}
+
+private fun ImageProxy.toBitmapFromRgba8888(): Bitmap? {
+    val plane = planes.firstOrNull() ?: return null
+    val buffer = plane.buffer
+
+    val pixelStride = plane.pixelStride
+    val rowStride = plane.rowStride
+    val rowPadding = rowStride - pixelStride * width
+
+    val bitmapWidth = width + rowPadding / pixelStride
+
+    val bitmapWithPadding = Bitmap.createBitmap(
+        bitmapWidth,
+        height,
+        Bitmap.Config.ARGB_8888
+    )
+
+    buffer.rewind()
+    bitmapWithPadding.copyPixelsFromBuffer(buffer)
+
+    return if (bitmapWidth == width) {
+        bitmapWithPadding
+    } else {
+        Bitmap.createBitmap(
+            bitmapWithPadding,
+            0,
+            0,
+            width,
+            height
         )
     }
 }
