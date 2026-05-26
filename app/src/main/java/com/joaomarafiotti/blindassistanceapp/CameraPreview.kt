@@ -285,6 +285,7 @@ private fun formatLiveDetectionResult(
     return if (topDetection == null) {
         "Câmera ativa | Nenhum objeto reconhecido | ${result.inferenceMs} ms | análise $frameCount"
     } else {
+        val translatedName = translateClassName(topDetection.className)
         val confidencePercent = (topDetection.confidence * 100).roundToInt()
         val confidenceLabel = if (topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
             "Detectado"
@@ -292,7 +293,7 @@ private fun formatLiveDetectionResult(
             "Possível"
         }
 
-        "$confidenceLabel: ${topDetection.className} $confidencePercent% | ${result.inferenceMs} ms | análise $frameCount"
+        "$confidenceLabel: $translatedName $confidencePercent% | ${result.inferenceMs} ms | análise $frameCount"
     }
 }
 
@@ -304,7 +305,7 @@ private fun buildLiveSpeechMessage(
 ): String? {
     val topDetection = result.detections.firstOrNull() ?: return null
 
-    val objectName = topDetection.className
+    val objectName = translateClassName(topDetection.className)
     val confidence = topDetection.confidence
     val confidencePercent = (confidence * 100).roundToInt()
 
