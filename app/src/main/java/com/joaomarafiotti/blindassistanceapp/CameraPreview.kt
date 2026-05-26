@@ -18,9 +18,11 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +39,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -81,7 +85,11 @@ fun CameraPreviewScreen(
     } else {
         Box(modifier = modifier.fillMaxSize()) {
             Text(
-                text = "Permissão de câmera necessária para iniciar a detecção contínua."
+                text = "Permissão de câmera necessária para iniciar a detecção contínua.",
+                modifier = Modifier.semantics {
+                    contentDescription =
+                        "Permissão de câmera necessária para iniciar a detecção contínua."
+                }
             )
         }
     }
@@ -101,7 +109,7 @@ private fun CameraPreviewContent(
     }
 
     var analysisStatusText by remember {
-        mutableStateOf("Aguardando frames da câmera...")
+        mutableStateOf("Câmera ativa. Aponte para um objeto.")
     }
 
     val cameraExecutor = remember {
@@ -156,28 +164,29 @@ private fun CameraPreviewContent(
                 .build()
                 .also { analysis ->
                     analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                        val now = System.currentTimeMillis()
-                        val last = lastAnalysisTimestamp.get()
+                        try {
+                            val now = System.currentTimeMillis()
+                            val last = lastAnalysisTimestamp.get()
 
-                        if (
-                            now - last >= LIVE_ANALYSIS_INTERVAL_MS &&
-                            lastAnalysisTimestamp.compareAndSet(last, now)
-                        ) {
-                            val count = analyzedFrameCount.incrementAndGet()
-                            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+                            if (
+                                now - last >= LIVE_ANALYSIS_INTERVAL_MS &&
+                                lastAnalysisTimestamp.compareAndSet(last, now)
+                            ) {
+                                val count = analyzedFrameCount.incrementAndGet()
+                                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
-                            val bitmap = imageProxy
-                                .toBitmapFromRgba8888()
-                                ?.rotate(rotationDegrees)
+                                val bitmap = imageProxy
+                                    .toBitmapFromRgba8888()
+                                    ?.rotate(rotationDegrees)
 
-                            if (bitmap == null) {
-                                mainExecutor.execute {
-                                    analysisStatusText =
-                                        "Falha ao converter frame da câmera para Bitmap."
-                                }
-                            } else {
-                                try {
+                                if (bitmap == null) {
+                                    mainExecutor.execute {
+                                        analysisStatusText =
+                                            "Não foi possível processar a imagem da câmera."
+                                    }
+                                } else {
                                     val result = detector.runOnBitmap(bitmap)
+
                                     val liveText = formatLiveDetectionResult(
                                         result = result,
                                         frameCount = count
@@ -198,18 +207,18 @@ private fun CameraPreviewContent(
                                             vibrateForLiveDetection(context, result)
                                         }
                                     }
-                                } catch (exception: Exception) {
-                                    exception.printStackTrace()
-
-                                    mainExecutor.execute {
-                                        analysisStatusText =
-                                            "Erro ao executar detecção no frame da câmera."
-                                    }
                                 }
                             }
-                        }
+                        } catch (exception: Exception) {
+                            exception.printStackTrace()
 
-                        imageProxy.close()
+                            mainExecutor.execute {
+                                analysisStatusText =
+                                    "Erro ao analisar a câmera. Tente reiniciar a detecção contínua."
+                            }
+                        } finally {
+                            imageProxy.close()
+                        }
                     }
                 }
 
@@ -254,8 +263,14 @@ private fun CameraPreviewContent(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(12.dp)
+                .background(
+                    color = Color.Black.copy(alpha = 0.65f),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 8.dp)
                 .semantics {
                     contentDescription = analysisStatusText
+                    liveRegion = LiveRegionMode.Polite
                 }
         )
     }
@@ -268,10 +283,16 @@ private fun formatLiveDetectionResult(
     val topDetection = result.detections.firstOrNull()
 
     return if (topDetection == null) {
-        "Frame $frameCount | Nenhum objeto reconhecido | ${result.inferenceMs} ms"
+        "Câmera ativa | Nenhum objeto reconhecido | ${result.inferenceMs} ms | análise $frameCount"
     } else {
         val confidencePercent = (topDetection.confidence * 100).roundToInt()
-        "Frame $frameCount | ${topDetection.className} $confidencePercent% | ${result.inferenceMs} ms"
+        val confidenceLabel = if (topDetection.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+            "Detectado"
+        } else {
+            "Possível"
+        }
+
+        "$confidenceLabel: ${topDetection.className} $confidencePercent% | ${result.inferenceMs} ms | análise $frameCount"
     }
 }
 
