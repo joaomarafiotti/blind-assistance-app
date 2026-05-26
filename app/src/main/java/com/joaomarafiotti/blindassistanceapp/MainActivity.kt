@@ -363,44 +363,61 @@ fun BlindAssistanceHomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                isLiveCameraMode = true
-                onSpeakResult("Modo de detecção contínua iniciado.")
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription =
-                        "Iniciar modo de detecção contínua com câmera aberta."
-                },
-            enabled = !isLoading,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Text("Iniciar detecção contínua")
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isLiveCameraMode) {
-            SectionCard(title = "Detecção contínua") {
-                Text(
-                    text = "Preview da câmera ativo. Nesta etapa, o app ainda não executa inferência contínua; o objetivo é validar a abertura da câmera dentro do aplicativo.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                    modifier = Modifier.semantics {
-                        contentDescription =
-                            "Preview da câmera ativo. Esta etapa valida apenas a abertura da câmera dentro do aplicativo."
+        SectionCard(title = "Detecção contínua assistiva") {
+            Text(
+                text = if (isLiveCameraMode) {
+                    "Câmera ativa. Aponte o celular para um objeto para receber feedback por voz e vibração."
+                } else {
+                    "Use este modo para manter a câmera aberta e analisar objetos periodicamente. O app fala o resultado quando encontra uma detecção relevante."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.semantics {
+                    contentDescription = if (isLiveCameraMode) {
+                        "Detecção contínua ativa. Aponte o celular para um objeto para receber feedback por voz e vibração."
+                    } else {
+                        "Modo de detecção contínua assistiva. A câmera pode ser mantida aberta para analisar objetos periodicamente."
                     }
-                )
+                }
+            )
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            Text(
+                text = "Modelo usado neste modo: YOLO26n Float32",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.semantics {
+                    contentDescription = "Modelo usado na detecção contínua: YOLO26n Float32."
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (!isLiveCameraMode) {
+                Button(
+                    onClick = {
+                        isLiveCameraMode = true
+                        onSpeakResult("Modo de detecção contínua iniciado.")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription =
+                                "Iniciar detecção contínua com câmera aberta, resposta por voz e vibração."
+                        },
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Iniciar detecção contínua")
+                }
+            } else {
                 CameraPreviewScreen(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -421,7 +438,7 @@ fun BlindAssistanceHomeScreen(
                         .fillMaxWidth()
                         .semantics {
                             contentDescription =
-                                "Parar modo de detecção contínua."
+                                "Parar detecção contínua e fechar a câmera."
                         },
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -431,9 +448,9 @@ fun BlindAssistanceHomeScreen(
                     Text("Parar detecção contínua")
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         SectionCard(title = "Resultado") {
             Surface(
