@@ -147,6 +147,7 @@ fun BlindAssistanceHomeScreen(
     var detectedObjects by remember { mutableStateOf(listOf<String>()) }
     var isLoading by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var isLiveCameraMode by remember { mutableStateOf(false) }
 
     fun detectorFor(modelConfig: TfliteModelConfig): YoloTfliteDetector {
         return when (modelConfig.assetName) {
@@ -362,7 +363,74 @@ fun BlindAssistanceHomeScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                isLiveCameraMode = true
+                onSpeakResult("Modo de detecção contínua iniciado.")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "Iniciar modo de detecção contínua com câmera aberta."
+                },
+            enabled = !isLoading,
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Text("Iniciar detecção contínua")
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (isLiveCameraMode) {
+            SectionCard(title = "Detecção contínua") {
+                Text(
+                    text = "Preview da câmera ativo. Nesta etapa, o app ainda não executa inferência contínua; o objetivo é validar a abertura da câmera dentro do aplicativo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    modifier = Modifier.semantics {
+                        contentDescription =
+                            "Preview da câmera ativo. Esta etapa valida apenas a abertura da câmera dentro do aplicativo."
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                CameraPreviewScreen(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(420.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        isLiveCameraMode = false
+                        onSpeakResult("Modo de detecção contínua encerrado.")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription =
+                                "Parar modo de detecção contínua."
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text("Parar detecção contínua")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         SectionCard(title = "Resultado") {
             Surface(
