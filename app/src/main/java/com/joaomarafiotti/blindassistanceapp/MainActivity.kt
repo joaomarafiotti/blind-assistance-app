@@ -404,7 +404,10 @@ fun BlindAssistanceHomeScreen(
                 CameraPreviewScreen(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(420.dp)
+                        .height(420.dp),
+                    onLiveDetectionMessage = { message ->
+                        onSpeakResult(message)
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

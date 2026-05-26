@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,11 +40,17 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
+
+private const val LIVE_ANALYSIS_INTERVAL_MS = 2500L
+private const val LIVE_SPEECH_COOLDOWN_MS = 5000L
+private const val HIGH_CONFIDENCE_THRESHOLD = 0.65f
 
 @Composable
 fun CameraPreviewScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLiveDetectionMessage: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
@@ -63,7 +70,10 @@ fun CameraPreviewScreen(
     }
 
     if (hasCameraPermission) {
-        CameraPreviewContent(modifier = modifier)
+        CameraPreviewContent(
+            modifier = modifier,
+            onLiveDetectionMessage = onLiveDetectionMessage
+        )
     } else {
         Box(modifier = modifier.fillMaxSize()) {
             Text(
@@ -75,10 +85,12 @@ fun CameraPreviewScreen(
 
 @Composable
 private fun CameraPreviewContent(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLiveDetectionMessage: (String) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentOnLiveDetectionMessage by rememberUpdatedState(onLiveDetectionMessage)
 
     val detector = remember(context) {
         YoloTfliteDetector(context.applicationContext)
@@ -104,7 +116,13 @@ private fun CameraPreviewContent(
         AtomicLong(0L)
     }
 
-    val analysisIntervalMs = 2500L
+    val lastSpeechTimestamp = remember {
+        AtomicLong(0L)
+    }
+
+    val lastSpokenObject = remember {
+        AtomicReference<String?>(null)
+    }
 
     val previewView = remember {
         PreviewView(context).apply {
@@ -138,7 +156,7 @@ private fun CameraPreviewContent(
                         val last = lastAnalysisTimestamp.get()
 
                         if (
-                            now - last >= analysisIntervalMs &&
+                            now - last >= LIVE_ANALYSIS_INTERVAL_MS &&
                             lastAnalysisTimestamp.compareAndSet(last, now)
                         ) {
                             val count = analyzedFrameCount.incrementAndGet()
@@ -161,8 +179,19 @@ private fun CameraPreviewContent(
                                         frameCount = count
                                     )
 
+                                    val speechText = buildLiveSpeechMessage(
+                                        result = result,
+                                        now = now,
+                                        lastSpokenObject = lastSpokenObject,
+                                        lastSpeechTimestamp = lastSpeechTimestamp
+                                    )
+
                                     mainExecutor.execute {
                                         analysisStatusText = liveText
+
+                                        if (speechText != null) {
+                                            currentOnLiveDetectionMessage(speechText)
+                                        }
                                     }
                                 } catch (exception: Exception) {
                                     exception.printStackTrace()
@@ -238,6 +267,38 @@ private fun formatLiveDetectionResult(
     } else {
         val confidencePercent = (topDetection.confidence * 100).roundToInt()
         "Frame $frameCount | ${topDetection.className} $confidencePercent% | ${result.inferenceMs} ms"
+    }
+}
+
+private fun buildLiveSpeechMessage(
+    result: LocalDetectionResult,
+    now: Long,
+    lastSpokenObject: AtomicReference<String?>,
+    lastSpeechTimestamp: AtomicLong
+): String? {
+    val topDetection = result.detections.firstOrNull() ?: return null
+
+    val objectName = topDetection.className
+    val confidence = topDetection.confidence
+    val confidencePercent = (confidence * 100).roundToInt()
+
+    val previousObject = lastSpokenObject.get()
+    val previousSpeechTime = lastSpeechTimestamp.get()
+
+    val isSameObject = previousObject == objectName
+    val isInsideCooldown = now - previousSpeechTime < LIVE_SPEECH_COOLDOWN_MS
+
+    if (isSameObject && isInsideCooldown) {
+        return null
+    }
+
+    lastSpokenObject.set(objectName)
+    lastSpeechTimestamp.set(now)
+
+    return if (confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+        "Detectado: $objectName. Confiança $confidencePercent por cento."
+    } else {
+        "Possível objeto: $objectName. Confiança $confidencePercent por cento."
     }
 }
 
