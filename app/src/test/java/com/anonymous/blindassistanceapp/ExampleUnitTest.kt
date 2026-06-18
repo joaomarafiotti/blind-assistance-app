@@ -1,4 +1,4 @@
-package com.joaomarafiotti.blindassistanceapp
+package com.anonymous.blindassistanceapp
 
 import org.junit.Test
 

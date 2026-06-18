@@ -341,7 +341,7 @@ blind-assistance-app/
 │           │   ├── classroom_yolo26n_e50_best_float16.tflite
 │           │   ├── classroom_yolov8n_e50_best_float32.tflite
 │           │   └── labels.txt
-│           ├── java/com/joaomarafiotti/blindassistanceapp/
+│           ├── java/com/anonymous/blindassistanceapp/
 │           │   ├── CameraPreview.kt
 │           │   ├── MainActivity.kt
 │           │   ├── YoloTfliteDetector.kt
@@ -458,4 +458,4 @@ object-recognition-server
 
 ## Autor
 
-João Pedro Piccino Marafiotti
+João Pedro Anonymous Anonymous

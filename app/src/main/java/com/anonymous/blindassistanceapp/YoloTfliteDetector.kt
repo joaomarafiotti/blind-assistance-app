@@ -1,4 +1,4 @@
-package com.joaomarafiotti.blindassistanceapp
+package com.anonymous.blindassistanceapp
 
 import android.content.Context
 import android.graphics.Bitmap

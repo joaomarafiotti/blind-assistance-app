@@ -60,7 +60,7 @@ Agora o app usa uma função de letterbox que:
 
 ```text
 
-app/src/main/java/com/joaomarafiotti/blindassistanceapp/YoloTfliteDetector.kt
+app/src/main/java/com/anonymous/blindassistanceapp/YoloTfliteDetector.kt
 
 ```
 

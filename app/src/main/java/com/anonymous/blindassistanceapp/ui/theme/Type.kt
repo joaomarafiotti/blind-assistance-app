@@ -1,4 +1,4 @@
-package com.joaomarafiotti.blindassistanceapp.ui.theme
+package com.anonymous.blindassistanceapp.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

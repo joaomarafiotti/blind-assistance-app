@@ -1,4 +1,4 @@
-package com.joaomarafiotti.blindassistanceapp.ui.theme
+package com.anonymous.blindassistanceapp.ui.theme
 
 import android.app.Activity
 import android.os.Build

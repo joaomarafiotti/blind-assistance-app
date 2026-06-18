@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.joaomarafiotti.blindassistanceapp"
+    namespace = "com.anonymous.blindassistanceapp"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.joaomarafiotti.blindassistanceapp"
+        applicationId = "com.anonymous.blindassistanceapp"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

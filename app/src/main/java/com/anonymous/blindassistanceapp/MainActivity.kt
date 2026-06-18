@@ -1,4 +1,4 @@
-package com.joaomarafiotti.blindassistanceapp
+package com.anonymous.blindassistanceapp
 
 import android.content.ContentValues
 import android.content.Context
@@ -57,7 +57,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import com.joaomarafiotti.blindassistanceapp.ui.theme.BlindAssistanceAppTheme
+import com.anonymous.blindassistanceapp.ui.theme.BlindAssistanceAppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
