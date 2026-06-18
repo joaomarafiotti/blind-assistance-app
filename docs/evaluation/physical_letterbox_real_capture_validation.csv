@@ -1,8 +1,0 @@
-image_id,expected_object,source,device,model,preprocessing,capture_mode,detected_objects,primary_detection,primary_confidence_percent,inference_ms,status,notes
-01,mochila/bolsa,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,bolsa,bolsa,94,179,correto,"Foto capturada diretamente pelo fluxo principal do app."
-02,régua,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,,sem_detecção,,290,sem_deteccao,"Objeto alongado; o modelo não reconheceu com segurança."
-03,cadeira,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,,sem_detecção,,330,sem_deteccao,"Cadeira real em ambiente doméstico; não houve detecção segura."
-04,tesoura,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,,sem_detecção,,297,sem_deteccao,"Objeto real sobre superfície clara; não houve detecção segura."
-05,caneta,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,caneta,caneta,89,340,correto,"Detecção correta."
-06,livro/mangá,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,mural,mural,85,336,erro,"Objeto era livro/mangá, mas foi classificado como mural."
-07,sapato,foto_real_capturada,Samsung S25 FE,YOLO26n Float32,letterbox_640,fluxo_principal_camera,sapato,sapato,84,257,correto,"Detecção correta."

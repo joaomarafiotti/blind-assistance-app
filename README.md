@@ -1,154 +1,113 @@
 # Blind Assistance App
 
-Aplicativo Android desenvolvido como parte de uma Iniciação Científica voltada ao reconhecimento de objetos em aplicações assistivas, com foco em usuários cegos ou com deficiência visual.
+Anonymized Android prototype for assistive object recognition using on-device object detection.
 
-O app permite reconhecer objetos comuns em ambientes internos, especialmente educacionais e domésticos, usando inferência local no próprio dispositivo Android, resposta por voz, vibração e um modo de detecção semi-contínua com CameraX.
+This repository contains the source code of an Android application developed for research on assistive object recognition. The prototype recognizes common objects in indoor environments and presents the result through text, speech, vibration, and a semi-continuous camera-based detection mode.
 
-## Objetivo
+Author, institution, and repository owner information have been omitted for double-anonymous review.
 
-O objetivo do projeto é investigar e implementar uma solução mobile para reconhecimento de objetos que possa auxiliar usuários cegos ou com deficiência visual na identificação de itens do ambiente.
+## Goal
 
-A proposta prioriza:
+The goal of this prototype is to investigate mobile object recognition for assistive use, especially for blind or visually impaired users.
 
-- inferência on-device;
-- baixa latência;
-- funcionamento sem depender constantemente de internet;
-- privacidade;
-- feedback acessível por voz e vibração;
-- compatibilidade com uso em dispositivo móvel.
+The project prioritizes:
 
-## Contexto do projeto
+* on-device inference;
+* reduced dependency on network connectivity;
+* lower latency compared with a remote-only architecture;
+* privacy, since images do not need to be sent to a server in the on-device mode;
+* accessible feedback through speech and vibration;
+* compatibility with Android mobile devices.
 
-Este repositório contém o cliente Android da IC.
+## Project overview
 
-O projeto possui dois repositórios principais:
+The project started with a client-server architecture. In that version, the Android app captured or selected an image and sent it to a FastAPI backend, which executed a YOLO model and returned detections as JSON.
 
-- `blind-assistance-app`: aplicativo Android;
-- `object-recognition-server`: backend FastAPI usado como baseline cliente-servidor.
+The project later evolved to on-device inference using TensorFlow Lite. The final Android prototype keeps the server-based mode as a baseline, but the main implementation uses local inference and a semi-continuous CameraX mode.
 
-Inicialmente, a arquitetura usava um backend FastAPI para receber imagens e executar YOLO no servidor. Ao longo do desenvolvimento, o app evoluiu para execução local com TensorFlow Lite e, posteriormente, para detecção semi-contínua com CameraX.
+## Technologies
 
-## Tecnologias utilizadas
+* Kotlin
+* Android Studio
+* Jetpack Compose
+* CameraX
+* TensorFlow Lite
+* Text-to-Speech
+* Vibration / haptic feedback
+* TalkBack semantics
+* OkHttp
+* YOLO / Ultralytics
+* FastAPI backend used as baseline
 
-- Kotlin
-- Android Studio
-- Jetpack Compose
-- CameraX
-- TensorFlow Lite
-- Text-to-Speech
-- Vibração/haptic feedback
-- TalkBack/semantics
-- OkHttp
-- YOLO/Ultralytics
-- FastAPI no backend de comparação
+## Architecture
 
-## Arquitetura geral
-
-O projeto evoluiu em três fases principais.
-
-### 1. Baseline cliente-servidor
-
-Fluxo inicial:
+### Client-server baseline
 
 ```text
-imagem capturada ou selecionada
-        ↓
-app Android
-        ↓
-backend FastAPI
-        ↓
-modelo YOLO no servidor
-        ↓
-resposta JSON
-        ↓
-resultado no app + Text-to-Speech
-````
-
-Esse modo foi mantido como baseline e ferramenta de comparação.
-
-### 2. Inferência on-device
-
-Fluxo local:
-
-```text
-imagem capturada ou selecionada
-        ↓
-pré-processamento com letterbox
-        ↓
-modelo YOLO TFLite local
-        ↓
-pós-processamento das detecções
-        ↓
-resultado visual + voz + vibração
+captured or selected image
+        |
+Android app
+        |
+FastAPI backend
+        |
+YOLO model on the server
+        |
+JSON response
+        |
+result in the app + Text-to-Speech
 ```
 
-Nesse modo, o app não depende do backend para reconhecer objetos.
-
-### 3. Detecção semi-contínua com CameraX
-
-Fluxo atual:
+### On-device inference
 
 ```text
-câmera aberta com CameraX
-        ↓
-captura periódica de frames
-        ↓
-conversão do frame para Bitmap
-        ↓
-pré-processamento com letterbox
-        ↓
-inferência TFLite on-device
-        ↓
-overlay visual
-        ↓
+captured or selected image
+        |
+letterbox preprocessing
+        |
+local YOLO TFLite model
+        |
+post-processing
+        |
+visual result + speech + vibration
+```
+
+### Semi-continuous CameraX detection
+
+```text
+CameraX preview
+        |
+periodic frame capture
+        |
+frame conversion to Bitmap
+        |
+letterbox preprocessing
+        |
+on-device TFLite inference
+        |
+visual overlay
+        |
 Text-to-Speech
-        ↓
-vibração
-        ↓
-cooldown para evitar repetição excessiva
+        |
+vibration
+        |
+cooldown to avoid excessive repetition
 ```
 
-Esse modo foi criado para reduzir a dependência de uma única foto perfeita e tornar o fluxo mais adequado ao uso assistivo.
+## Available models
 
-## Modelos disponíveis no app
+The app includes three TensorFlow Lite models in the assets folder:
 
-O app inclui três modelos TFLite em `assets`:
-
-| Modelo          | Arquivo                                     | Uso                      |
+| Model           | File                                        | Use                      |
 | --------------- | ------------------------------------------- | ------------------------ |
-| YOLO26n Float32 | `classroom_yolo26n_e50_best_float32.tflite` | modelo padrão            |
-| YOLO26n Float16 | `classroom_yolo26n_e50_best_float16.tflite` | alternativa experimental |
-| YOLOv8n Float32 | `classroom_yolov8n_e50_best_float32.tflite` | referência comparativa   |
+| YOLO26n Float32 | `classroom_yolo26n_e50_best_float32.tflite` | default model            |
+| YOLO26n Float16 | `classroom_yolo26n_e50_best_float16.tflite` | experimental alternative |
+| YOLOv8n Float32 | `classroom_yolov8n_e50_best_float32.tflite` | comparative reference    |
 
-O modelo padrão final do app é:
-
-```text
-YOLO26n Float32
-```
-
-## Sobre o treinamento dos modelos
-
-Os modelos não foram criados do zero. Foram utilizadas arquiteturas YOLO pré-treinadas como ponto de partida, com fine-tuning no dataset do projeto.
-
-Fluxo geral:
-
-```text
-modelo YOLO pré-treinado
-        ↓
-fine-tuning com Objects in the Classroom
-        ↓
-best.pt
-        ↓
-exportação para TensorFlow Lite
-        ↓
-arquivo .tflite usado no Android
-```
-
-Assim, os modelos usados no app são modelos customizados para o problema da IC, treinados/fine-tuned com o dataset Objects in the Classroom.
+The final default model is YOLO26n Float32.
 
 ## Dataset
 
-Foi utilizado o dataset Objects in the Classroom, com 20 classes de objetos comuns em ambientes internos:
+The models were fine-tuned using the Objects in the Classroom dataset, which contains 20 indoor and educational object classes:
 
 ```text
 table, chair, whiteboard, bookshelf, clock, wall-magazine, trash-can,
@@ -156,306 +115,176 @@ eraser, sharpener, pen, book, ruler, scissor, fan, laptop,
 remote-control, bag, pants, shoes, hat
 ```
 
-No app, os labels são traduzidos para português durante a apresentação dos resultados.
+In the app, labels are translated to Portuguese for user feedback.
 
-## Funcionalidades atuais
+## Current features
 
-O app possui:
+The Android prototype includes:
 
-* captura de foto pela câmera;
-* seleção de imagem pelo Android Photo Picker;
-* inferência local com TensorFlow Lite;
-* suporte a múltiplos modelos TFLite;
-* modelo padrão YOLO26n Float32;
-* alternativa YOLO26n Float16;
-* alternativa YOLOv8n Float32;
-* modo backend para comparação;
-* pré-processamento com letterbox;
-* detecção semi-contínua com CameraX;
-* overlay visual com objeto, confiança e tempo;
-* Text-to-Speech em português;
-* feedback por vibração;
-* cooldown para reduzir repetição no modo contínuo;
-* suporte a TalkBack via semantics;
-* documentação de avaliações em `docs/evaluation`.
+* image capture using the camera;
+* image selection using Android Photo Picker;
+* local inference with TensorFlow Lite;
+* support for multiple TFLite models;
+* YOLO26n Float32 as the default model;
+* YOLO26n Float16 as an experimental alternative;
+* YOLOv8n Float32 as a comparative model;
+* backend mode for comparison;
+* letterbox preprocessing;
+* semi-continuous CameraX detection;
+* visual overlay with object, confidence, and inference time;
+* Text-to-Speech in Portuguese;
+* vibration feedback;
+* cooldown to reduce repeated speech in continuous mode;
+* basic TalkBack semantics.
 
-## Modos do aplicativo
+## Main results summary
 
-### Fluxo principal
+### Dataset images in emulator
 
-Permite capturar uma foto e receber o resultado por voz, texto e vibração.
+| Metric                   | Result |
+| ------------------------ | -----: |
+| Evaluated images         |     20 |
+| Correct                  |     17 |
+| Partially correct        |      1 |
+| Incorrect                |      1 |
+| No detection             |      1 |
+| Simple accuracy          |    85% |
+| Correct + partial        |    90% |
+| Approximate average time | 368 ms |
 
-```text
-tirar foto
-    ↓
-executar YOLO26n TFLite local
-    ↓
-mostrar resultado
-    ↓
-falar resultado
-    ↓
-vibrar conforme confiança
-```
+### Dataset images on physical device
 
-### Detecção contínua assistiva
+| Metric                   |   Result |
+| ------------------------ | -------: |
+| Evaluated images         |       10 |
+| Correct                  |        8 |
+| Incorrect                |        1 |
+| No detection             |        1 |
+| Approximate average time | 167.3 ms |
 
-Mantém a câmera aberta e analisa frames periodicamente.
+### CameraX functional test
 
-O app fala apenas quando há uma detecção relevante, usando cooldown para evitar repetição excessiva.
+| Metric                          |   Result |
+| ------------------------------- | -------: |
+| Registered observations         |       10 |
+| Semantically correct detections |       10 |
+| Approximate average time        | 214.2 ms |
+| Minimum observed time           |   111 ms |
+| Maximum observed time           |   467 ms |
+| Approximate average confidence  |    60.9% |
 
-Exemplos de fala:
+The CameraX evaluation was treated as a functional and qualitative test, not as a broad statistical evaluation.
 
-```text
-sapato detectado. Confiança alta.
-possível objeto: caneta. Confiança média.
-possível objeto: livro. Confiança baixa.
-```
+### Final short model selection test
 
-A porcentagem de confiança continua visível no overlay para fins de teste e depuração.
+| Model           | Correct | Average confidence | Average time |
+| --------------- | ------: | -----------------: | -----------: |
+| YOLO26n Float32 |     3/3 |              92.7% |     138.7 ms |
+| YOLO26n Float16 |     3/3 |              93.0% |     145.3 ms |
+| YOLOv8n Float32 |     3/3 |              91.0% |     194.3 ms |
 
-### Modo de teste e comparação
+Based on these results and on the stability observed during development, YOLO26n Float32 was selected as the final default model.
 
-Permite selecionar imagens e comparar os modelos disponíveis:
-
-* YOLO26n Float32;
-* YOLO26n Float16;
-* YOLOv8n Float32;
-* backend FastAPI.
-
-## Categorias de confiança
-
-No modo contínuo, o app usa categorias de confiança para tornar a fala mais curta e acessível:
-
-| Faixa         | Categoria                |
-| ------------- | ------------------------ |
-| 80% a 100%    | confiança alta           |
-| 50% a 79%     | confiança média          |
-| 30% a 49%     | confiança baixa          |
-| abaixo de 30% | sem confiança suficiente |
-
-## Resultados principais
-
-### Teste com imagens do dataset no emulador
-
-| Métrica                | Resultado |
-| ---------------------- | --------: |
-| Imagens avaliadas      |        20 |
-| Acertos                |        17 |
-| Parcialmente correto   |         1 |
-| Erros                  |         1 |
-| Sem detecção           |         1 |
-| Acurácia simples       |       85% |
-| Acertos + parciais     |       90% |
-| Tempo médio aproximado |    368 ms |
-
-### Teste físico com imagens do dataset
-
-Dispositivo: Samsung S25 FE.
-
-| Métrica                | Resultado |
-| ---------------------- | --------: |
-| Imagens avaliadas      |        10 |
-| Acertos                |         8 |
-| Erros                  |         1 |
-| Sem detecção           |         1 |
-| Tempo médio aproximado |  167,3 ms |
-
-### Teste físico com fotos reais capturadas pelo app
-
-| Métrica                | Resultado |
-| ---------------------- | --------: |
-| Imagens avaliadas      |         7 |
-| Acertos                |         3 |
-| Erros                  |         1 |
-| Sem detecção           |         3 |
-| Tempo médio aproximado |  289,9 ms |
-
-Esse teste mostrou que o app funcionava no celular real, mas também evidenciou limitações em fotos reais fora das condições do dataset.
-
-### Validação do letterbox
-
-| Métrica                | Resize direto | Letterbox |
-| ---------------------- | ------------: | --------: |
-| Acertos                |           5/5 |       5/5 |
-| Confiança média        |         93,4% |     93,4% |
-| Tempo médio aproximado |      458,0 ms |  476,6 ms |
-
-O letterbox foi mantido porque preserva melhor a proporção da imagem e não prejudicou os resultados avaliados.
-
-### Teste funcional do CameraX
-
-| Métrica                           | Resultado |
-| --------------------------------- | --------: |
-| Observações registradas           |        10 |
-| Detecções semanticamente corretas |        10 |
-| Tempo médio aproximado            |  214,2 ms |
-| Menor tempo observado             |    111 ms |
-| Maior tempo observado             |    467 ms |
-| Confiança média aproximada        |     60,9% |
-
-O modo CameraX conseguiu abrir a câmera, processar frames, executar inferência local, atualizar o overlay, falar resultados, vibrar e reiniciar sem travar.
-
-### Teste final curto de seleção do modelo
-
-| Objeto          | YOLO26n Float32 | YOLO26n Float16 | YOLOv8n Float32 |
-| --------------- | --------------: | --------------: | --------------: |
-| Caneta          |    88% / 189 ms |    88% / 205 ms |    90% / 262 ms |
-| Controle remoto |    93% / 133 ms |    94% / 105 ms |    90% / 149 ms |
-| Bolsa/mochila   |     97% / 94 ms |    97% / 126 ms |    93% / 172 ms |
-
-Resumo:
-
-| Modelo          | Acertos | Confiança média | Tempo médio |
-| --------------- | ------: | --------------: | ----------: |
-| YOLO26n Float32 |     3/3 |           92,7% |    138,7 ms |
-| YOLO26n Float16 |     3/3 |           93,0% |    145,3 ms |
-| YOLOv8n Float32 |     3/3 |           91,0% |    194,3 ms |
-
-Com base nesses resultados e na estabilidade ao longo do desenvolvimento, o YOLO26n Float32 foi mantido como modelo padrão.
-
-## Justificativa da escolha do modelo final
-
-O YOLO26n Float32 foi escolhido como modelo padrão porque:
-
-* apresentou bom desempenho em dispositivo móvel;
-* teve o menor tempo médio no teste final curto;
-* foi o modelo mais validado ao longo do desenvolvimento;
-* funcionou no fluxo de foto única;
-* funcionou no modo CameraX;
-* manteve compatibilidade com TensorFlow Lite;
-* apresentou estabilidade suficiente para a versão final da IC.
-
-O YOLO26n Float16 apresentou resultados promissores e arquivo menor, mas foi mantido como alternativa experimental por exigir validação mais ampla no modo contínuo.
-
-O YOLOv8n Float32 também funcionou, mas não apresentou vantagem prática suficiente para substituir o YOLO26n como padrão.
-
-## Estrutura do projeto
+## Project structure
 
 ```text
 blind-assistance-app/
-├── app/
-│   └── src/
-│       └── main/
-│           ├── assets/
-│           │   ├── classroom_yolo26n_e50_best_float32.tflite
-│           │   ├── classroom_yolo26n_e50_best_float16.tflite
-│           │   ├── classroom_yolov8n_e50_best_float32.tflite
-│           │   └── labels.txt
-│           ├── java/com/anonymous/blindassistanceapp/
-│           │   ├── CameraPreview.kt
-│           │   ├── MainActivity.kt
-│           │   ├── YoloTfliteDetector.kt
-│           │   └── ui/theme/
-│           ├── res/
-│           └── AndroidManifest.xml
-├── docs/
-│   └── evaluation/
-├── gradle/
-├── README.md
-├── build.gradle.kts
-└── settings.gradle.kts
+|-- app/
+|   |-- src/
+|       |-- main/
+|           |-- assets/
+|           |   |-- classroom_yolo26n_e50_best_float32.tflite
+|           |   |-- classroom_yolo26n_e50_best_float16.tflite
+|           |   |-- classroom_yolov8n_e50_best_float32.tflite
+|           |   |-- labels.txt
+|           |-- java/com/anonymous/blindassistanceapp/
+|           |   |-- CameraPreview.kt
+|           |   |-- MainActivity.kt
+|           |   |-- YoloTfliteDetector.kt
+|           |   |-- ui/theme/
+|           |-- res/
+|           |-- AndroidManifest.xml
+|-- gradle/
+|-- README.md
+|-- build.gradle.kts
+|-- settings.gradle.kts
 ```
 
-## Arquivos principais
+## Main files
 
 ### `MainActivity.kt`
 
-Contém a tela principal do app, fluxo de captura de foto, seleção de imagem, integração com backend, integração on-device, Text-to-Speech, vibração e organização dos modos de uso.
+Main app screen, image capture, image selection, backend integration, on-device integration, Text-to-Speech, vibration, and app mode organization.
 
 ### `CameraPreview.kt`
 
-Implementa o modo de detecção semi-contínua com CameraX. É responsável por abrir a câmera, capturar frames, converter para Bitmap, executar o detector local, atualizar o overlay e controlar feedback por voz/vibração.
+Implements the semi-continuous CameraX detection mode. It opens the camera, captures frames, converts frames to Bitmap, runs the local detector, updates the overlay, and controls speech/vibration feedback.
 
 ### `YoloTfliteDetector.kt`
 
-Carrega o modelo TFLite, aplica letterbox, prepara o buffer de entrada, executa inferência local e interpreta a saída do modelo.
+Loads the TFLite model, applies letterbox preprocessing, prepares the input buffer, runs local inference, and interprets the model output.
 
-### `docs/evaluation/`
+## How to run
 
-Contém os documentos de avaliação funcional, comparação de modelos, validação física e resumo final consolidado.
+1. Open the project in Android Studio.
+2. Sync Gradle.
+3. Connect an Android device or start an emulator.
+4. Run the app.
 
-## Como executar
+The on-device and CameraX modes do not require the backend.
 
-1. Abra o projeto no Android Studio.
-2. Sincronize o Gradle.
-3. Conecte um celular Android ou abra um emulador.
-4. Execute o app com o botão Run.
+To test the backend mode, also run the FastAPI server from the related backend repository.
 
-Para testar o modo on-device e o modo CameraX, não é necessário rodar o backend.
+## Backend local address
 
-Para testar o modo backend, rode também o servidor do repositório `object-recognition-server`.
-
-## Backend local
-
-Durante testes com emulador Android, o app acessa o backend local usando:
+When using the Android emulator, the app accesses the local backend through:
 
 ```text
 http://10.0.2.2:8000
 ```
 
-Esse endereço permite que o emulador acesse o servidor rodando na máquina host.
+For a physical device, use the host machine local IP address on the same Wi-Fi network.
 
-Para testes em celular físico, é necessário usar o IP local da máquina na rede Wi-Fi.
+## Current status
 
-## Histórico de versões
+* Android app functional;
+* on-device inference working;
+* CameraX mode working;
+* Text-to-Speech working;
+* vibration feedback working;
+* backend mode preserved as baseline;
+* final default model: YOLO26n Float32.
 
-| Tag                                   | Descrição                                        |
-| ------------------------------------- | ------------------------------------------------ |
-| v0.1-client-server-baseline           | baseline cliente-servidor                        |
-| v0.2-on-device-tflite                 | primeira versão com TFLite on-device             |
-| v0.4-yolo26n-float16                  | inclusão e comparação inicial do YOLO26n Float16 |
-| v0.5-letterbox-preprocessing          | pré-processamento com letterbox                  |
-| v0.6-physical-real-capture-validation | validação física com fotos reais                 |
-| v0.7-camerax-live-detection           | CameraX com detecção semi-contínua               |
+## Limitations
 
-## Status atual
+The app is still a research prototype and has limitations:
 
-* app Android funcional;
-* inferência on-device funcionando;
-* CameraX funcionando;
-* Text-to-Speech funcionando;
-* vibração funcionando;
-* modo backend preservado;
-* avaliação final consolidada documentada;
-* modelo padrão final: YOLO26n Float32;
-* versão atual: v0.7-camerax-live-detection.
+* it recognizes only the 20 dataset classes;
+* it may confuse objects outside the trained classes;
+* it has not been formally evaluated with blind or visually impaired users;
+* real-world tests were performed with small samples;
+* bounding boxes are not yet used for spatial guidance;
+* advanced feedback for multiple objects is not implemented;
+* Float16 still requires broader validation in the CameraX mode;
+* battery consumption and thermal behavior were not formally evaluated.
 
-## Limitações
+## Future work
 
-O app ainda é um protótipo de pesquisa e possui limitações:
+Possible future improvements include:
 
-* reconhece apenas as 20 classes do dataset;
-* pode confundir objetos fora das classes treinadas;
-* ainda não possui validação formal com usuários cegos;
-* os testes reais foram feitos com amostras pequenas;
-* ainda não usa bounding boxes para orientar espacialmente o usuário;
-* ainda não possui feedback avançado para múltiplos objetos;
-* o modo Float16 ainda precisa de validação mais ampla no CameraX;
-* consumo de bateria e aquecimento ainda não foram avaliados formalmente.
+* evaluation with blind or visually impaired users;
+* broader testing with real photos;
+* further validation of YOLO26n Float16 in CameraX mode;
+* battery and thermal evaluation;
+* spatial guidance using bounding boxes;
+* messages such as "move slightly left" or "move closer";
+* improved feedback for multiple objects;
+* training with more real-world images;
+* comparison between larger backend models and smaller on-device models;
+* separation between assistive mode and debugging mode.
 
-## Trabalhos futuros
+## Related repository
 
-Possíveis evoluções:
+The FastAPI backend was used as a baseline in the project.
 
-* validar com usuários cegos ou com deficiência visual;
-* ampliar testes com fotos reais;
-* testar YOLO26n Float16 no modo CameraX;
-* avaliar consumo de bateria e aquecimento;
-* usar bounding boxes para orientação espacial;
-* implementar mensagens como “mova um pouco para a esquerda” ou “aproxime o celular”;
-* melhorar feedback para múltiplos objetos;
-* treinar com mais imagens reais;
-* comparar modelos maiores em backend com modelos menores on-device;
-* separar modo assistivo final e modo de depuração.
-
-## Repositório relacionado
-
-Backend do projeto:
-
-```text
-object-recognition-server
-```
-
-## Autor
-
-João Pedro Anonymous Anonymous
+Repository information is omitted for double-anonymous review.
