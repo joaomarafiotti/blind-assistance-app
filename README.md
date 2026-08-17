@@ -4,6 +4,14 @@ Aplicativo Android desenvolvido como parte de uma Iniciação Científica voltad
 
 O app permite reconhecer objetos comuns em ambientes internos, especialmente educacionais e domésticos, usando inferência local no próprio dispositivo Android, resposta por voz, vibração e um modo de detecção semi-contínua com CameraX.
 
+## Publicação associada
+
+Este repositório contém o protótipo desenvolvido durante a Iniciação Científica sobre reconhecimento assistivo de objetos.
+
+O trabalho foi aceito para publicação no **23º Encontro Nacional de Inteligência Artificial e Computacional (ENIAC 2026)**, realizado em conjunto com o BRACIS 2026.
+
+A versão do código correspondente ao artigo está preservada na release [`v1.0-ic-final`](https://github.com/joaomarafiotti/blind-assistance-app/releases/tag/v1.0-ic-final).
+
 ## Objetivo
 
 O objetivo do projeto é investigar e implementar uma solução mobile para reconhecimento de objetos que possa auxiliar usuários cegos ou com deficiência visual na identificação de itens do ambiente.
@@ -407,6 +415,7 @@ Para testes em celular físico, é necessário usar o IP local da máquina na re
 | v0.5-letterbox-preprocessing          | pré-processamento com letterbox                  |
 | v0.6-physical-real-capture-validation | validação física com fotos reais                 |
 | v0.7-camerax-live-detection           | CameraX com detecção semi-contínua               |
+| v1.0-ic-final | versão final consolidada da Iniciação Científica e versão associada ao artigo ENIAC 2026 |
 
 ## Status atual
 
@@ -418,7 +427,7 @@ Para testes em celular físico, é necessário usar o IP local da máquina na re
 * modo backend preservado;
 * avaliação final consolidada documentada;
 * modelo padrão final: YOLO26n Float32;
-* versão atual: v0.7-camerax-live-detection.
+* versão final da IC: `v1.0-ic-final`.
 
 ## Limitações
 
